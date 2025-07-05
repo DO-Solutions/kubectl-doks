@@ -56,8 +56,8 @@ users:
 // when all DO contexts have corresponding clusters in the liveClusters list
 func TestPruneConfig_AllContextsValid(t *testing.T) {
 	liveClusters := []do.Cluster{
-		{ID: "cluster1", Name: "nyc1-cluster1", Region: "nyc1"},
-		{ID: "cluster2", Name: "ams3-cluster2", Region: "ams3"},
+		{ID: "cluster1", Name: "cluster1", Region: "nyc1"},
+		{ID: "cluster2", Name: "cluster2", Region: "ams3"},
 	}
 
 	// Prune the config
@@ -86,7 +86,7 @@ func TestPruneConfig_AllContextsValid(t *testing.T) {
 func TestPruneConfig_RemoveStaleContext(t *testing.T) {
 	liveClusters := []do.Cluster{
 		// Only cluster1 is active, cluster2 has been deleted
-		{ID: "cluster1", Name: "nyc1-cluster1", Region: "nyc1"},
+		{ID: "cluster1", Name: "cluster1", Region: "nyc1"},
 	}
 
 	// Prune the config
@@ -129,7 +129,7 @@ func TestPruneConfig_CurrentContextRemoved(t *testing.T) {
 
 	liveClusters := []do.Cluster{
 		// Only cluster1 is active, cluster2 has been deleted
-		{ID: "cluster1", Name: "nyc1-cluster1", Region: "nyc1"},
+		{ID: "cluster1", Name: "cluster1", Region: "nyc1"},
 	}
 
 	// Prune the config
@@ -147,17 +147,19 @@ func TestPruneConfig_CurrentContextRemoved(t *testing.T) {
 	assert.Empty(t, configObj.CurrentContext, "Current context should be cleared")
 }
 
-// TestPruneConfig_EmptyConfig tests that the function returns an error for empty config
+// TestPruneConfig_EmptyConfig tests that the function handles an empty config gracefully.
 func TestPruneConfig_EmptyConfig(t *testing.T) {
 	liveClusters := []do.Cluster{
-		{ID: "cluster1", Name: "nyc1-cluster1", Region: "nyc1"},
+		{ID: "cluster1", Name: "cluster1", Region: "nyc1"},
 	}
 
 	// Prune an empty config
-	_, _, err := PruneConfig([]byte{}, liveClusters)
+	prunedConfig, removedContexts, err := PruneConfig([]byte{}, liveClusters)
 
 	// Check result
-	assert.Error(t, err, "PruneConfig should return an error for empty config")
+	assert.NoError(t, err, "PruneConfig should not return an error for empty config")
+	assert.Empty(t, prunedConfig, "Pruned config should be empty")
+	assert.Empty(t, removedContexts, "No contexts should be removed")
 }
 
 // Helper function to modify the current-context in a kubeconfig string

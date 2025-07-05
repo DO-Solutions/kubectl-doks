@@ -173,12 +173,9 @@ func createMockDoctlConfig(t *testing.T, content string) string {
 
 const mockConfigContent = `
 auth-contexts:
-  context1:
-    access-token: token1
-  context2:
-    access-token: token2
-  context3:
-    access-token: token3
+  context1: token1
+  context2: token2
+  context3: token3
 context: context1
 `
 

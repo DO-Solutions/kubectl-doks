@@ -50,7 +50,7 @@ func TestSyncCommand(t *testing.T) {
 			"user-1": {
 				Username: "user1",
 			},
-			"do-nyc1-old-user": {
+			"do-nyc1-old-cluster-admin": {
 				Username: "olduser",
 			},
 		},
@@ -59,9 +59,9 @@ func TestSyncCommand(t *testing.T) {
 				Cluster:  "cluster-1",
 				AuthInfo: "user-1",
 			},
-			"do-nyc1-old": {
+			"do-nyc1-old-cluster": {
 				Cluster:  "do-nyc1-old-cluster",
-				AuthInfo: "do-nyc1-old-user",
+				AuthInfo: "do-nyc1-old-cluster-admin",
 			},
 		},
 		CurrentContext: "context-1",
@@ -81,17 +81,17 @@ func TestSyncCommand(t *testing.T) {
 			},
 		},
 		AuthInfos: map[string]*k8sclientcmdapi.AuthInfo{
-			"do-sfo3-new-user": {
+			"do-sfo3-new-cluster-admin": {
 				Username: "newuser",
 			},
 		},
 		Contexts: map[string]*k8sclientcmdapi.Context{
-			"do-sfo3-new": {
+			"do-sfo3-new-cluster": {
 				Cluster:  "do-sfo3-new-cluster",
-				AuthInfo: "do-sfo3-new-user",
+				AuthInfo: "do-sfo3-new-cluster-admin",
 			},
 		},
-		CurrentContext: "do-sfo3-new",
+		CurrentContext: "do-sfo3-new-cluster",
 	}
 	newConfigBytes, err := k8sclientcmd.Write(*newClusterConfig)
 	require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestSyncCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. Verify the old DO context was removed
-	_, hasOldContext := updatedConfig.Contexts["do-nyc1-old"]
+	_, hasOldContext := updatedConfig.Contexts["do-nyc1-old-cluster"]
 	assert.False(t, hasOldContext, "Old DO context should have been removed")
 
 	// 4. Verify the old cluster was removed
@@ -213,11 +213,11 @@ func TestSyncCommand(t *testing.T) {
 	assert.False(t, hasOldCluster, "Old DO cluster should have been removed")
 
 	// 5. Verify the old auth info was removed
-	_, hasOldUser := updatedConfig.AuthInfos["do-nyc1-old-user"]
+	_, hasOldUser := updatedConfig.AuthInfos["do-nyc1-old-cluster-admin"]
 	assert.False(t, hasOldUser, "Old DO user should have been removed")
 
 	// 6. Verify the new context was added
-	_, hasNewContext := updatedConfig.Contexts["do-sfo3-new"]
+	_, hasNewContext := updatedConfig.Contexts["do-sfo3-new-cluster"]
 	assert.True(t, hasNewContext, "New DO context should have been added")
 
 	// 7. Verify the new cluster was added
@@ -225,7 +225,7 @@ func TestSyncCommand(t *testing.T) {
 	assert.True(t, hasNewCluster, "New DO cluster should have been added")
 
 	// 8. Verify the new auth info was added
-	_, hasNewUser := updatedConfig.AuthInfos["do-sfo3-new-user"]
+	_, hasNewUser := updatedConfig.AuthInfos["do-sfo3-new-cluster-admin"]
 	assert.True(t, hasNewUser, "New DO user should have been added")
 
 	// 9. Verify the current context was preserved

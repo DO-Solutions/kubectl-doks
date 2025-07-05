@@ -110,7 +110,10 @@ func getTokensFromDoctlConfig(v *viper.Viper) ([]string, error) {
 
 	var tokens []string
 	for _, context := range contextsToUse {
-		token := v.GetString(fmt.Sprintf("auth-contexts.%s.access-token", context))
+		token := v.GetString(fmt.Sprintf("auth-contexts.%s", context))
+		if token == "true" {
+			token = v.GetString("access-token")
+		}
 		if token != "" {
 			tokens = append(tokens, token)
 		}
@@ -123,12 +126,19 @@ func getTokensFromDoctlConfig(v *viper.Viper) ([]string, error) {
 func getCurrentDoctlContextToken(v *viper.Viper) ([]string, error) {
 	currentContext := v.GetString("context")
 	if currentContext == "" {
-		return nil, nil // No current context set.
+		// If 'context' is not explicitly set, doctl uses 'default'.
+		currentContext = "default"
 	}
 
-	token := v.GetString(fmt.Sprintf("auth-contexts.%s.access-token", currentContext))
+	// For most contexts, the token is the value. For 'default', the value is "true".
+	token := v.GetString(fmt.Sprintf("auth-contexts.%s", currentContext))
+	if token == "true" {
+		// A value of "true" for a context indicates to use the global access-token.
+		token = v.GetString("access-token")
+	}
+
 	if token == "" {
-		return nil, nil // Current context has no token.
+		return nil, nil // No token found for the context.
 	}
 
 	return []string{token}, nil

@@ -152,18 +152,25 @@ is synchronized with the clusters' credentials.`,
 			if verbose {
 				fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
 			}
-			if err := util.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
-				fmt.Fprintf(os.Stderr, "Error backing up kubeconfig: %v\n", err)
-				os.Exit(1)
+			// Only backup if the file exists
+			if _, err := os.Stat(kubeConfigPath); err == nil {
+				if err := util.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
+					fmt.Fprintf(os.Stderr, "Error backing up kubeconfig: %v\n", err)
+					os.Exit(1)
+				}
 			}
 
 			if err := os.WriteFile(kubeConfigPath, currentConfigBytes, 0600); err != nil {
 				fmt.Fprintf(os.Stderr, "Error writing updated kubeconfig: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(allClusters))
+			if verbose {
+				fmt.Printf("Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(allClusters))
+			}
 		} else {
-			fmt.Println("Kubeconfig is already up to date.")
+			if verbose {
+				fmt.Println("Kubeconfig is already up to date.")
+			}
 		}
 	},
 }
