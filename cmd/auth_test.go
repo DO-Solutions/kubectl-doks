@@ -179,8 +179,18 @@ auth-contexts:
 context: context1
 `
 
+const mockConfigWithDefaultContext = `
+access-token: tokenDefault
+auth-contexts:
+  default: "true"
+  context1: token1
+  context2: token2
+context: default
+`
+
 func TestGetAllAccessTokens(t *testing.T) {
 	mockConfigPath := createMockDoctlConfig(t, mockConfigContent)
+	mockConfigWithDefaultPath := createMockDoctlConfig(t, mockConfigWithDefaultContext)
 
 	tests := []struct {
 		name        string
@@ -215,6 +225,24 @@ func TestGetAllAccessTokens(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "using default auth context with 'true' value",
+			setup: func() {
+				authContexts = []string{"default"}
+				configFile = mockConfigWithDefaultPath
+			},
+			want:        []string{"tokenDefault"},
+			expectError: false,
+		},
+		{
+			name: "using --all-auth-contexts with default context",
+			setup: func() {
+				allAuthContexts = true
+				configFile = mockConfigWithDefaultPath
+			},
+			want:        []string{"token1", "token2", "tokenDefault"},
+			expectError: false,
+		},
+		{
 			name: "using DIGITALOCEAN_ACCESS_TOKEN env var",
 			setup: func() {
 				t.Setenv("DIGITALOCEAN_ACCESS_TOKEN", "env-token")
@@ -228,6 +256,14 @@ func TestGetAllAccessTokens(t *testing.T) {
 				configFile = mockConfigPath
 			},
 			want:        []string{"token1"},
+			expectError: false,
+		},
+		{
+			name: "using current doctl context which is the default context",
+			setup: func() {
+				configFile = mockConfigWithDefaultPath
+			},
+			want:        []string{"tokenDefault"},
 			expectError: false,
 		},
 		{
