@@ -142,7 +142,8 @@ func TestSyncCommand(t *testing.T) {
 	defer func() { kubeConfigPath = originalKubeConfigPath }()
 
 	// 3. Run the command
-	syncCmd.Run(syncCmd, []string{})
+	err = syncCmd.RunE(syncCmd, []string{})
+	require.NoError(t, err)
 
 	// 4. Verify the results
 	// Check that backup was created
