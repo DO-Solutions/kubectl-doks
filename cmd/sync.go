@@ -47,16 +47,16 @@ is synchronized with the clusters' credentials.`,
 		clusterIDToClient := make(map[string]*do.Client)
 
 		for _, token := range tokens {
-			client, err := do.NewClient(token, "") // Use default API URL
+			client, err := do.NewClient(token, apiURL)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error creating DigitalOcean client: %v\n", err)
-				continue
+				os.Exit(1)
 			}
 
 			clusters, err := client.ListClusters(ctx)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error fetching clusters for a token: %v\n", err)
-				continue
+				os.Exit(1)
 			}
 
 			for _, cluster := range clusters {
@@ -113,13 +113,13 @@ is synchronized with the clusters' credentials.`,
 			client, ok := clusterIDToClient[cluster.ID]
 			if !ok {
 				fmt.Fprintf(os.Stderr, "Error: could not find a client for cluster %s\n", cluster.Name)
-				continue
+				os.Exit(1)
 			}
 
 			kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error getting kubeconfig for cluster %s: %v\n", cluster.Name, err)
-				continue
+				os.Exit(1)
 			}
 
 			var mergedConfigBytes []byte
@@ -129,7 +129,7 @@ is synchronized with the clusters' credentials.`,
 				mergedConfigBytes, err = kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error merging kubeconfig for cluster %s: %v\n", cluster.Name, err)
-					continue
+					os.Exit(1)
 				}
 			}
 			
@@ -139,7 +139,7 @@ is synchronized with the clusters' credentials.`,
 			configObj, err = k8sclientcmd.Load(currentConfigBytes)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error reloading kubeconfig after merge: %v\n", err)
-				continue
+				os.Exit(1)
 			}
 		}
 
@@ -169,6 +169,5 @@ is synchronized with the clusters' credentials.`,
 }
 
 func init() {
-	syncCmd.Flags().StringVarP(&kubeConfigPath, "kubeconfig", "k", "", "Path to the kubeconfig file to sync to")
-	rootCmd.AddCommand(syncCmd)
+	kubeconfigCmd.AddCommand(syncCmd)
 }
