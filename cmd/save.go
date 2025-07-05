@@ -6,9 +6,8 @@ import (
 	"os"
 
 	"github.com/DO-Solutions/kubectl-doks/do"
-	"github.com/DO-Solutions/kubectl-doks/internal/ui"
 	"github.com/DO-Solutions/kubectl-doks/pkg/kubeconfig"
-	"github.com/DO-Solutions/kubectl-doks/util"
+	"github.com/DO-Solutions/kubectl-doks/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -95,12 +94,10 @@ If no cluster name is provided, launches an interactive prompt to pick a cluster
 			fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
 		}
 		if _, err := os.Stat(kubeConfigPath); err == nil {
-			if err := util.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
+			if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
 				return fmt.Errorf("backing up kubeconfig: %w", err)
 			}
 		}
-
-		
 
 		mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, setCurrentContext)
 		if err != nil {

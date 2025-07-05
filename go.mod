@@ -3,6 +3,9 @@ module github.com/DO-Solutions/kubectl-doks
 go 1.24.2
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.7
+	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
+	github.com/creack/pty v1.1.17
 	github.com/digitalocean/godo v1.155.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.11.0
@@ -11,7 +14,6 @@ require (
 )
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.7 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect

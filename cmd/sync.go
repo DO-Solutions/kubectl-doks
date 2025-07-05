@@ -7,7 +7,6 @@ import (
 
 	"github.com/DO-Solutions/kubectl-doks/do"
 	"github.com/DO-Solutions/kubectl-doks/pkg/kubeconfig"
-	"github.com/DO-Solutions/kubectl-doks/util"
 	"github.com/spf13/cobra"
 	k8sclientcmd "k8s.io/client-go/tools/clientcmd"
 	k8sclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -60,8 +59,6 @@ is synchronized with the clusters' credentials.`,
 			fmt.Println("No DOKS clusters found to sync.")
 			return nil
 		}
-
-		
 
 		prunedConfigBytes, removedContexts, err := kubeconfig.PruneConfig(existingConfigBytes, allClusters)
 		if err != nil {
@@ -128,7 +125,7 @@ is synchronized with the clusters' credentials.`,
 				fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
 			}
 			if _, err := os.Stat(kubeConfigPath); err == nil {
-				if err := util.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
+				if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
 					return fmt.Errorf("backing up kubeconfig: %w", err)
 				}
 			}
