@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -47,50 +46,37 @@ func init() {
 		"Use this doctl authentication context (can specify multiple times)")
 	rootCmd.PersistentFlags().BoolVarP(&allAuthContexts, "all-auth-contexts", "", false, "Include all doctl authentication contexts")
 	rootCmd.PersistentFlags().StringVarP(&apiURL, "api-url", "u", "", "Override the default DigitalOcean API endpoint")
-	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "",
-		"Path to doctl config file (default: $HOME/.config/doctl/config.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Path to doctl config file (default: $HOME/.config/doctl/config.yaml)")
 	rootCmd.PersistentFlags().IntVarP(&expirySeconds, "expiry-seconds", "", 0,
 		"Credential TTL in seconds; auto-renewal is enabled by default")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 }
 
-// validateAuthFlags ensures that exactly one authentication method is specified
+// validateAuthFlags ensures that at least one authentication method is specified.
 func validateAuthFlags(cmd *cobra.Command, args []string) error {
-	// Skip validation for help command
-	if cmd.Name() == "help" {
+	// Skip validation for help and version commands
+	if cmd.Name() == "help" || cmd.Name() == "version" {
 		return nil
 	}
-
-	// Count how many authentication methods are specified
-	methodCount := 0
-
-	if len(accessTokens) > 0 {
-		methodCount++
+	if err := validateAuthSources(); err != nil {
+		return err
 	}
 
-	if len(authContexts) > 0 {
-		methodCount++
+	// Check if at least one authentication method is provided via flags, environment variables, or a doctl config file.
+	flagsProvided := len(accessTokens) > 0 || len(authContexts) > 0 || allAuthContexts
+	envProvided := os.Getenv("DIGITALOCEAN_ACCESS_TOKEN") != ""
+
+	if !flagsProvided && !envProvided {
+		// If no explicit auth is given, check for the implicit doctl config file.
+		configPath := configFile
+		if configPath == "" {
+			configPath = getDoctlConfigPath()
+		}
+
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			return fmt.Errorf("no authentication method provided; please use flags, set DIGITALOCEAN_ACCESS_TOKEN, or configure doctl")
+		}
 	}
 
-	if allAuthContexts {
-		methodCount++
-	}
-
-	// Check if DIGITALOCEAN_ACCESS_TOKEN environment variable is set
-	if os.Getenv("DIGITALOCEAN_ACCESS_TOKEN") != "" && methodCount == 0 {
-		// Using environment variable as default
-		return nil
-	}
-
-	switch methodCount {
-	case 0:
-		return errors.New("no authentication method specified; " +
-			"use --access-token, --auth-context, --all-auth-contexts, " +
-			"or set DIGITALOCEAN_ACCESS_TOKEN environment variable")
-	case 1:
-		return nil
-	default:
-		return fmt.Errorf("multiple authentication methods specified; " +
-			"use exactly one of: --access-token, --auth-context, or --all-auth-contexts")
-	}
+	return nil
 }

@@ -1,24 +1,19 @@
 package cmd
 
 import (
-	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
 )
 
 func TestValidateAuthFlags(t *testing.T) {
-	// Save original env var value and restore it after tests
-	originalToken := os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
-	defer os.Setenv("DIGITALOCEAN_ACCESS_TOKEN", originalToken)
-
 	tests := []struct {
-		name              string
-		accessTokens      []string
-		authContexts      []string
-		allAuthContexts   bool
-		envToken          string
-		expectError       bool
+		name            string
+		accessTokens    []string
+		authContexts    []string
+		allAuthContexts bool
+		envToken        string
+		expectError     bool
 	}{
 		{
 			name:            "no auth method",
@@ -100,27 +95,56 @@ func TestValidateAuthFlags(t *testing.T) {
 			envToken:        "",
 			expectError:     false,
 		},
-	};
+		{
+			name:            "env token and accessToken	",
+			accessTokens:    []string{"token123"},
+			authContexts:    nil,
+			allAuthContexts: false,
+			envToken:        "env-token",
+			expectError:     false,
+		},
+		{
+			name:            "env token and authContext	",
+			accessTokens:    nil,
+			authContexts:    []string{"context1"},
+			allAuthContexts: false,
+			envToken:        "env-token",
+			expectError:     false,
+		},
+		{
+			name:            "env token and allAuthContexts	",
+			accessTokens:    nil,
+			authContexts:    nil,
+			allAuthContexts: true,
+			envToken:        "env-token",
+			expectError:     false,
+		},
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup
+			// Setup global flags for the test case.
 			accessTokens = tt.accessTokens
 			authContexts = tt.authContexts
 			allAuthContexts = tt.allAuthContexts
-			if tt.envToken != "" {
-				os.Setenv("DIGITALOCEAN_ACCESS_TOKEN", tt.envToken)
-			} else {
-				os.Unsetenv("DIGITALOCEAN_ACCESS_TOKEN")
+
+			// Set environment variables for the test case.
+			t.Setenv("DIGITALOCEAN_ACCESS_TOKEN", tt.envToken)
+
+			// Special handling for the 'no auth method' test to ensure it runs in an isolated environment.
+			if tt.name == "no auth method" {
+				// Create a temporary directory to act as the user's home directory.
+				// This ensures the test doesn't depend on a real doctl config file.
+				t.Setenv("HOME", t.TempDir())
 			}
 
-			// Create a dummy command for testing
+			// Create a dummy command for testing.
 			cmd := &cobra.Command{Use: "test"}
 
-			// Execute validation
+			// Execute validation.
 			err := validateAuthFlags(cmd, []string{})
 
-			// Check result
+			// Check result.
 			if (err != nil) != tt.expectError {
 				t.Errorf("validateAuthFlags() error = %v, expectError %v", err, tt.expectError)
 			}
