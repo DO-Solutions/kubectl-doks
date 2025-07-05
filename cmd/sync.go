@@ -11,177 +11,164 @@ import (
 	"github.com/DO-Solutions/kubectl-doks/util"
 	"github.com/spf13/cobra"
 	k8sclientcmd "k8s.io/client-go/tools/clientcmd"
+	k8sclientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // syncCmd represents the sync command
+var kubeConfigPath string
+
 var syncCmd = &cobra.Command{
 	Use:   "sync",
-	Short: "Synchronize all DOKS clusters to ~/.kube/config (or specified config file)",
-	Long: `Fetches all reachable teams' DOKS clusters and ensures your local ~/.kube/config (or specified config file)
-contains only the contexts matching existing clusters (contexts start with do-).`,
+	Short: "Synchronize all DOKS clusters to the kubeconfig file",
+	Long: `Fetches all reachable DOKS clusters and ensures that the local kubeconfig file
+is synchronized with the clusters' credentials.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Kubeconfig paths
-		var kubeConfigPath string
-		if configFile != "" {
-			// Use the specified config path from the flag
-			kubeConfigPath = configFile
-		} else {
-			// Use default location
+		// Determine kubeconfig path.
+		if kubeConfigPath == "" {
 			homedir, err := os.UserHomeDir()
 			if err != nil {
-				fmt.Printf("Error finding home directory: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error finding home directory: %v\n", err)
 				os.Exit(1)
 			}
 			kubeConfigPath = filepath.Join(homedir, ".kube", "config")
 		}
-		
-		// We don't need to validate auth flags here as it's done in PersistentPreRunE
-		// Create context
+
 		ctx := context.Background()
-		
-		
-		// Read existing kubeconfig
-		existingConfig, err := os.ReadFile(kubeConfigPath)
+
+		// Get all DigitalOcean access tokens.
+		tokens, err := getAllAccessTokens()
 		if err != nil {
-			fmt.Printf("Error reading kubeconfig: %v\n", err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		
-		// Track all clusters across all auth contexts and map them to their access token.
-		allClusters := []do.Cluster{}
-		clusterIDToAccessToken := make(map[string]string)
 
-		// For each auth context, call ListClusters
-		for _, token := range accessTokens {
-			if verbose {
-				fmt.Println("Notice: Getting cluster credentials using provided access token")
-			}
+		// For each token, get all clusters and store a client that can access them.
+		var allClusters []do.Cluster
+		clusterIDToClient := make(map[string]*do.Client)
 
-			// Create a new DO client
-			client, err := do.NewClient(token, apiURL)
+		for _, token := range tokens {
+			client, err := do.NewClient(token, "") // Use default API URL
 			if err != nil {
-				fmt.Printf("Error creating DO client: %v\n", err)
-				os.Exit(1)
-			}
-
-			// List clusters
-			clusters, err := client.ListClusters(ctx)
-			if err != nil {
-				fmt.Printf("Error listing clusters: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Add to our collection of all clusters and record which token discovered them
-			for _, c := range clusters {
-				allClusters = append(allClusters, c)
-				clusterIDToAccessToken[c.ID] = token
-			}
-		}
-		
-		// Prune stale entries
-		prunedConfig, removedContexts, err := kubeconfig.PruneConfig(existingConfig, allClusters)
-		if err != nil {
-			fmt.Printf("Error pruning kubeconfig: %v\n", err)
-			os.Exit(1)
-		}
-		
-		if verbose && len(removedContexts) > 0 {
-			fmt.Printf("Notice: Removing contexts: %v\n", removedContexts)
-		}
-		
-		// Keep track of the current config as we make changes
-		currentConfig := prunedConfig
-		
-		// For each live cluster not in config, fetch and merge its kubeconfig
-		// First, parse the current config to check which clusters we already have
-		configObj, err := k8sclientcmd.Load(currentConfig)
-		if err != nil {
-			fmt.Printf("Error parsing kubeconfig: %v\n", err)
-			os.Exit(1)
-		}
-		
-		// Track added contexts for verbose output
-		addedContexts := []string{}
-		
-		// For each cluster, check if we need to add it
-		for _, cluster := range allClusters {
-			// Check if this cluster is already in the config
-			// The context name format for DO clusters is typically 'do-<region>-<cluster-id>'
-			expectedContextName := fmt.Sprintf("do-%s-%s", cluster.Region, cluster.ID)
-			
-			// Skip if already in config
-			if _, exists := configObj.Contexts[expectedContextName]; exists {
+				fmt.Fprintf(os.Stderr, "Error creating DigitalOcean client: %v\n", err)
 				continue
 			}
-			
-			// Get the token that works for this cluster.
-			token, exists := clusterIDToAccessToken[cluster.ID]
-			if !exists {
-				// This should not happen if the cluster is in allClusters.
-				fmt.Printf("Error: No valid access token found for cluster %s, aborting\n", cluster.ID)
+
+			clusters, err := client.ListClusters(ctx)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error fetching clusters for a token: %v\n", err)
+				continue
+			}
+
+			for _, cluster := range clusters {
+				allClusters = append(allClusters, cluster)
+				clusterIDToClient[cluster.ID] = client
+			}
+		}
+
+		if len(allClusters) == 0 {
+			fmt.Println("No DOKS clusters found to sync.")
+			return
+		}
+
+		// Read existing kubeconfig or start with an empty one.
+		existingConfigBytes, err := os.ReadFile(kubeConfigPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "Error reading kubeconfig at %s: %v\n", kubeConfigPath, err)
 				os.Exit(1)
 			}
-			
-			// Create a client with the working token
-			client, err := do.NewClient(token, apiURL)
-			if err != nil {
-				fmt.Printf("Error creating DO client: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Fetch the kubeconfig
-			kubeConfig, err := client.GetKubeConfig(ctx, cluster.ID)
-			if err != nil {
-				fmt.Printf("Error getting kubeconfig for cluster %s: %v\n", cluster.ID, err)
-				os.Exit(1)
-			}
-			
-			// Merge this config
-			mergedConfig, err := kubeconfig.MergeConfig(currentConfig, kubeConfig, false)
-			if err != nil {
-				fmt.Printf("Error merging kubeconfig for cluster %s: %v\n", cluster.ID, err)
-				os.Exit(1)
-			}
-			
-			// Update our current config
-			currentConfig = mergedConfig
-			addedContexts = append(addedContexts, expectedContextName)
-			
-			// Refresh the configObj for the next iteration
-			configObj, err = k8sclientcmd.Load(currentConfig)
-			if err != nil {
-				fmt.Printf("Error parsing updated kubeconfig: %v\n", err)
+			existingConfigBytes = []byte{}
+		}
+
+		// Prune stale entries from the config.
+		prunedConfigBytes, removedContexts, err := kubeconfig.PruneConfig(existingConfigBytes, allClusters)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error pruning kubeconfig: %v\n", err)
+			os.Exit(1)
+		}
+		if verbose && len(removedContexts) > 0 {
+			fmt.Printf("Notice: Removing stale contexts: %v\n", removedContexts)
+		}
+
+		currentConfigBytes := prunedConfigBytes
+		var addedContexts []string
+
+		configObj, err := k8sclientcmd.Load(currentConfigBytes)
+		if err != nil {
+			if len(currentConfigBytes) == 0 {
+				configObj = k8sclientcmdapi.NewConfig()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error parsing kubeconfig: %v\n", err)
 				os.Exit(1)
 			}
 		}
-		
+
+		// For each live cluster, add it to the config if it's not already there.
+		for _, cluster := range allClusters {
+			expectedContextName := fmt.Sprintf("do-%s-%s", cluster.Region, cluster.Name)
+			if _, exists := configObj.Contexts[expectedContextName]; exists {
+				continue // Skip if context already exists.
+			}
+
+			client, ok := clusterIDToClient[cluster.ID]
+			if !ok {
+				fmt.Fprintf(os.Stderr, "Error: could not find a client for cluster %s\n", cluster.Name)
+				continue
+			}
+
+			kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error getting kubeconfig for cluster %s: %v\n", cluster.Name, err)
+				continue
+			}
+
+			var mergedConfigBytes []byte
+			if len(currentConfigBytes) == 0 {
+				mergedConfigBytes = kubeConfigBytes
+			} else {
+				mergedConfigBytes, err = kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error merging kubeconfig for cluster %s: %v\n", cluster.Name, err)
+					continue
+				}
+			}
+			
+			currentConfigBytes = mergedConfigBytes
+			addedContexts = append(addedContexts, expectedContextName)
+
+			configObj, err = k8sclientcmd.Load(currentConfigBytes)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error reloading kubeconfig after merge: %v\n", err)
+				continue
+			}
+		}
+
 		if verbose && len(addedContexts) > 0 {
 			fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
 		}
 
-		// Backup existing config
-		backupPath := kubeConfigPath + ".kubectl-doks.bak"
-		if verbose {
-			fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
-		}
-		
-		if err := util.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
-			fmt.Printf("Error backing up kubeconfig: %v\n", err)
-			os.Exit(1)
-		}
-		
-		// Write updated config back to disk
-		if err := os.WriteFile(kubeConfigPath, currentConfig, 0600); err != nil {
-			fmt.Printf("Error writing updated kubeconfig: %v\n", err)
-			os.Exit(1)
-		}
-		
-		if verbose {
-			fmt.Printf("Notice: Syncing cluster credentials to kubeconfig file found in %q\n", kubeConfigPath)
+		if len(removedContexts) > 0 || len(addedContexts) > 0 {
+			backupPath := kubeConfigPath + ".kubectl-doks.bak"
+			if verbose {
+				fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
+			}
+			if err := util.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Error backing up kubeconfig: %v\n", err)
+				os.Exit(1)
+			}
+
+			if err := os.WriteFile(kubeConfigPath, currentConfigBytes, 0600); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing updated kubeconfig: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(allClusters))
+		} else {
+			fmt.Println("Kubeconfig is already up to date.")
 		}
 	},
 }
 
 func init() {
-	kubeconfigCmd.AddCommand(syncCmd)
+	syncCmd.Flags().StringVarP(&kubeConfigPath, "kubeconfig", "k", "", "Path to the kubeconfig file to sync to")
+	rootCmd.AddCommand(syncCmd)
 }
