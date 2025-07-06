@@ -11,16 +11,9 @@ build:
 clean:
 	rm -f dist/$(BIN_NAME)
 
-.PHONY: test-unit
-test-unit:
+.PHONY: test
+test:
 	$(GO) test -v ./...
-
-.PHONY: test-integration
-test-integration:
-	$(GO) test -v ./test/integration/...
-
-.PHONY: test-all
-test-all: test-unit test-integration
 
 .PHONY: lint
 lint:
