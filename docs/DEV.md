@@ -104,14 +104,4 @@ This roadmap breaks down the work into incremental, testable, and shippable mile
 2. `cmd/save.go` fully functional.
 3. Tests in `internal/ui/prompt_test.go` and `cmd/save_test.go`.
 
----
 
-## Milestone 7: Logging & Error Aggregation
-**Objectives**:
-* Implement `utils/logging.go` to print Notices vs. verbose logs based on `--verbose`.
-* In sync and save, catch and aggregate errors from multiple auth contexts; fatal only once all contexts attempted.
-* Unit tests for logging outputs and aggregated error behavior.
-
-**Deliverables**:
-1. `utils/logging.go` with `Notice(...)` and `Verbose(...)` functions.
-2. Tests in `utils/logging_test.go`.

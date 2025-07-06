@@ -64,9 +64,6 @@ is synchronized with the clusters' credentials.`,
 		if err != nil {
 			return fmt.Errorf("pruning kubeconfig: %w", err)
 		}
-		if verbose && len(removedContexts) > 0 {
-			fmt.Printf("Notice: Removing stale contexts: %v\n", removedContexts)
-		}
 
 		currentConfigBytes := prunedConfigBytes
 		var addedContexts []string
@@ -115,10 +112,6 @@ is synchronized with the clusters' credentials.`,
 			}
 		}
 
-		if verbose && len(addedContexts) > 0 {
-			fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
-		}
-
 		if len(removedContexts) > 0 || len(addedContexts) > 0 {
 			backupPath := kubeConfigPath + ".kubectl-doks.bak"
 			if verbose {
@@ -130,15 +123,23 @@ is synchronized with the clusters' credentials.`,
 				}
 			}
 
+			if verbose && len(removedContexts) > 0 {
+				fmt.Printf("Notice: Removing stale contexts: %v\n", removedContexts)
+			}
+
+			if verbose && len(addedContexts) > 0 {
+				fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
+			}
+
 			if err := os.WriteFile(kubeConfigPath, currentConfigBytes, 0600); err != nil {
 				return fmt.Errorf("writing updated kubeconfig: %w", err)
 			}
 			if verbose {
-				fmt.Printf("Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(allClusters))
+				fmt.Printf("Notice: Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(allClusters))
 			}
 		} else {
 			if verbose {
-				fmt.Println("Kubeconfig is already up to date.")
+				fmt.Println("Notice: Kubeconfig is already up to date.")
 			}
 		}
 		return nil
