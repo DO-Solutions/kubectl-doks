@@ -1,41 +1,42 @@
 # kubectl-doks
 
-A Kubernetes CLI plugin to manage DigitalOcean Kubernetes (DOKS) kubeconfig entries. Easily synchronize all active DOKS clusters to your local `~/.kube/config` and remove stale contexts, or save a single cluster’s credentials interactively or by name.
+A Kubernetes CLI plugin to manage DigitalOcean Kubernetes (DOKS) kubeconfig entries. Easily synchronize all active DOKS clusters to your local `~/.kube/config` and remove stale contexts, or save a single cluster’s credentials by name.
 
-This plugin is ideal for environments where clusters are created and destroyed frequently: it keeps your local kubeconfig in sync by removing credentials for deleted clusters and adding new ones in a single command. You can stay in the familiar `kubectl` context without switching back to `doctl`, and the built‑in text‑based UI makes selecting programmatically generated cluster names simple, even when you don’t remember the exact identifier.
+This plugin is ideal for environments where clusters are created and destroyed frequently: it keeps your local kubeconfig in sync by removing credentials for deleted clusters and adding new ones in a single command. You can stay in the familiar `kubectl` context without switching back to `doctl`.
 
 ---
 
 ## Installation
 
-### Prebuilt Binary
-
-1. Download the latest release from GitHub:
-
-   ```bash
-   curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/download/vX.Y.Z/kubectl-doks_$(uname | tr '[:upper:]' '[:lower:]')_amd64.tar.gz
-   tar -xzvf kubectl-doks_*.tar.gz
-   mv kubectl-doks /usr/local/bin/
-   ```
-2. Verify installation:
-
-   ```bash
-   kubectl plugin list
-   # should show "doks" in the list of installed plugins
-   ```
-
 ### Install via Custom krew Index
 
-1. Add your custom krew index (if not already added):
+1.  Add the custom krew index (if not already added):
 
-   ```bash
-   kubectl krew index add mykrew https://github.com/DO-Solutions/krew-index.git
-   ```
-2. Install the plugin:
+    ```bash
+    kubectl krew index add do-solutions https://github.com/DO-Solutions/krew-index.git
+    ```
+2.  Install the plugin:
 
-   ```bash
-   kubectl krew install doks
-   ```
+    ```bash
+    kubectl krew install do-solutions/doks
+    ```
+
+### Prebuilt Binary
+
+1.  Download the latest release from GitHub (replace `vX.Y.Z` with the desired version):
+
+    ```bash
+    # Example for Linux
+    curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/download/vX.Y.Z/kubectl-doks_linux_amd64.tar.gz
+    tar -xzvf kubectl-doks_*.tar.gz
+    sudo mv kubectl-doks /usr/local/bin/
+    ```
+2.  Verify installation:
+
+    ```bash
+    kubectl plugin list
+    # should show "doks" in the list of installed plugins
+    ```
 
 ---
 
@@ -45,7 +46,7 @@ This plugin is ideal for environments where clusters are created and destroyed f
 # Synchronize all DOKS clusters to ~/.kube/config
 kubectl doks kubeconfig sync [flags]
 
-# Save a single cluster’s credentials (by name or interactively)
+# Save credentials for a single named cluster or all new clusters
 kubectl doks kubeconfig save [<cluster-name>] [flags]
 ```
 
@@ -53,65 +54,78 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 
 #### `kubeconfig sync`
 
-* **Description**: Fetches all reachable teams’ DOKS clusters and ensures your local `~/.kube/config` contains only the contexts matching existing clusters (contexts start with `do-`).
-* **Behavior**:
-    * Creates a backup of the existing kubeconfig at `~/.kube/config.kubectl-doks.bak` before modifying it
-    * Adds missing contexts for active clusters and removes contexts (and related cluster/users) for deleted clusters
-    * Does *not* change `current-context`
+*   **Description**: Fetches all DOKS clusters from the configured DigitalOcean authentication contexts and synchronizes your local `~/.kube/config` file.
+*   **Behavior**:
+    *   Creates a backup of the existing kubeconfig at `~/.kube/config.kubectl-doks.bak` before modifying it.
+    *   **Adds** contexts for any new clusters found on DigitalOcean that are not in your local kubeconfig.
+    *   **Removes** stale contexts (and related cluster/user entries) from your kubeconfig if the corresponding cluster no longer exists on DigitalOcean. It only removes contexts prefixed with `do-`.
+    *   Does **not** change the `current-context`.
 
-#### `kubeconfig save [cluster-name]`
+#### `kubeconfig save [<cluster-name>]`
 
-* **Description**: Fetches a single cluster’s credentials and merges them into `~/.kube/config`. 
-* **Behavior**:
-    * Works the same way `doctl kubernetes cluster kubeconfig save` works if `<cluster-name>` is provided.
-    * If `<cluster-name>` is omitted, launches an interactive prompt to pick a cluster
-    * By default, sets `current-context` to the newly saved context
+*   **Description**: Fetches credentials and merges them into `~/.kube/config`. This command has two modes of operation depending on whether a cluster name is provided.
+*   **Behavior**:
+    *   **When a `<cluster-name>` is provided**: It saves the credentials for that specific cluster. This is functionally equivalent to `doctl kubernetes cluster kubeconfig save <cluster-name>`.
+    *   **When `<cluster-name>` is omitted**: It saves the credentials for **all** available clusters that are not already in your kubeconfig. This is useful for adding all new clusters without removing old ones.
+    *   By default, it sets the `current-context` to the newly saved context, but **only when saving a single, named cluster**.
 
 ---
 
 ## Flags
 
-| Flag                           | Description                                                                 | Applicable To |
-| ------------------------------ | --------------------------------------------------------------------------- | ------------- |
-| `-t`, `--access-token`         | DigitalOcean API V2 token                                                   | global        |
-| `-u`, `--api-url`              | Override the default DigitalOcean API endpoint                              | global        |
-| `-c`, `--config`               | Path to `doctl` config file (default: `$HOME/.config/doctl/config.yaml`)    | global        |
-| `--auth-context`               | Use this `doctl` authentication context (can specify multiple times)        | global        |
-| `--all-auth-contexts`          | Include all `doctl` authentication contexts                                 | global        |
-| `--expiry-seconds` `<seconds>` | Credential TTL in seconds; auto-renewal is enabled by default               | global        |
-| `-v`, `--verbose`              | Enable verbose output (reports added/removed contexts, teams queried, etc.) | global        |
-| `--set-current-context`        | *(save only)* Set `current-context` to the new context (default: `true`)    | save          |
+| Flag | Description | Applicable To |
+| --- | --- | --- |
+| `-t`, `--access-token` | DigitalOcean API V2 token (can be specified multiple times) | global |
+| `-u`, `--api-url` | Override the default DigitalOcean API endpoint | global |
+| `-c`, `--config` | Path to `doctl` config file (default: `$HOME/.config/doctl/config.yaml`) | global |
+| `--auth-context` | Use this `doctl` authentication context (can be specified multiple times) | global |
+| `--all-auth-contexts` | Include all `doctl` authentication contexts | global |
+| `--expiry-seconds` | Credential TTL in seconds; auto-renewal is enabled by default | global |
+| `-v`, `--verbose` | Enable verbose output (reports added/removed contexts, teams queried, etc.) | global |
+| `--set-current-context` | *(save only)* Set `current-context` to the new context (default: `true`). **Only applies when saving a single named cluster.** | save |
 
 **Notes**:
 
-* `--access-token` and `--auth-context` flags may each be specified multiple times to fetch clusters from multiple teams.
-* Combining `--access-token`, `--auth-context`, and `--all-auth-contexts` is not allowed; the plugin will exit with an error if more than one of these modes is used.
+*   You must provide an authentication method via one of the following (in order of precedence): `--access-token`, `--auth-context`, `--all-auth-contexts`, or the `DIGITALOCEAN_ACCESS_TOKEN` environment variable. If none are provided, the plugin will attempt to use your default `doctl` configuration.
+*   Combining `--access-token`, `--auth-context`, and `--all-auth-contexts` is not allowed; the plugin will exit with an error if more than one of these modes is used.
 
 ---
 
 ## Examples
 
 ```bash
-# Sync all clusters for default doctl context
+# Sync all clusters for the default doctl context.
+# This adds new clusters and removes stale ones.
 kubectl doks kubeconfig sync
 
-# Sync, using a specific token and config file
-kubectl doks kubeconfig sync -t $DIGITALOCEAN_ACCESS_TOKEN -c ~/.config/doctl/custom.yaml
+# Saves all clusters for the default doctl context.
+# This adds new clusters and but does not remove stale ones.
+kubectl doks kubeconfig save
 
-# Save credentials for a named cluster and switch context
-# This is functionally the same as 'doctl kubernetes cluster kubeconfig save do-test-1'   
-kubectl doks kubeconfig save do-test-1
+# Sync all clusters for all doctl contexts.
+# This adds new clusters and removes stale ones.
+kubectl doks kubeconfig sync --all-auth-contexts
 
-# Save interactively from multiple teams
+# Sync clusters using a specific API token.
+kubectl doks kubeconfig sync -t $DIGITALOCEAN_ACCESS_TOKEN
+
+# Save credentials for a single named cluster and switch the current context to it.
+kubectl doks kubeconfig save my-cluster-name
+
+# Save credentials for all new/missing clusters from multiple specified teams
+# without changing the current context.
 kubectl doks kubeconfig save --auth-context test-team-1 --auth-context test-team-2
+
+# Save a single cluster but prevent changing the current context.
+kubectl doks kubeconfig save my-cluster-name --set-current-context=false
 ```
 
 ---
 
 ## Error Handling
 
-* Fatal if unable to reach any specified team (reports all failures at once).
-* Exits with non-zero status on invalid flags or API errors.
+*   Fatal if unable to reach any specified team (reports all failures at once).
+*   Exits with non-zero status on invalid flags or API errors.
 
 ---
 
