@@ -7,8 +7,9 @@ import (
 
 	"github.com/DO-Solutions/kubectl-doks/do"
 	"github.com/DO-Solutions/kubectl-doks/pkg/kubeconfig"
-	"github.com/DO-Solutions/kubectl-doks/pkg/ui"
 	"github.com/spf13/cobra"
+	k8sclientcmd "k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 var (
@@ -18,9 +19,10 @@ var (
 // saveCmd represents the save command
 var saveCmd = &cobra.Command{
 	Use:   "save [<cluster-name>]",
-	Short: "Save a single cluster's credentials",
-	Long: `Fetches a single cluster's credentials and merges them into ~/.kube/config.
-If no cluster name is provided, launches an interactive prompt to pick a cluster.`,
+	Short: "Save cluster credentials",
+	Long: `Fetches cluster credentials and merges them into ~/.kube/config.
+If a cluster name is provided, it saves that specific cluster's credentials.
+If no cluster name is provided, it saves the credentials for all available clusters.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var existingConfigBytes []byte
 		var err error
@@ -61,10 +63,9 @@ If no cluster name is provided, launches an interactive prompt to pick a cluster
 			return nil
 		}
 
-		var selectedCluster do.Cluster
-
 		if len(args) > 0 {
 			clusterName := args[0]
+			var selectedCluster do.Cluster
 			found := false
 			for _, cluster := range allClusters {
 				if cluster.Name == clusterName {
@@ -76,51 +77,112 @@ If no cluster name is provided, launches an interactive prompt to pick a cluster
 			if !found {
 				return fmt.Errorf("cluster %q not found", clusterName)
 			}
-		} else {
-			selectedCluster, err = ui.Cluster(allClusters)
+
+			client := clusterToClient[selectedCluster.ID]
+			kubeConfigBytes, err := client.GetKubeConfig(ctx, selectedCluster.ID)
 			if err != nil {
-				return fmt.Errorf("selecting cluster: %w", err)
+				return fmt.Errorf("getting kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+			}
+
+			backupPath := kubeConfigPath + ".kubectl-doks.bak"
+			if verbose {
+				fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
+			}
+			if _, err := os.Stat(kubeConfigPath); err == nil {
+				if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
+					return fmt.Errorf("backing up kubeconfig: %w", err)
+				}
+			}
+
+			mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, setCurrentContext)
+			if err != nil {
+				return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+			}
+
+			if err := os.WriteFile(kubeConfigPath, mergedConfigBytes, 0600); err != nil {
+				return fmt.Errorf("writing updated kubeconfig: %w", err)
+			}
+
+			if verbose {
+				fmt.Printf("Notice: Saved credentials for cluster %q to %s\n", selectedCluster.Name, kubeConfigPath)
+				if setCurrentContext {
+					contextName := fmt.Sprintf("do-%s-%s", selectedCluster.Region, selectedCluster.Name)
+					fmt.Printf("Notice: Set current-context to %q\n", contextName)
+				}
+			}
+		} else {
+			// If no cluster name is provided, save all clusters.
+			currentConfigBytes := existingConfigBytes
+			var addedContexts []string
+
+			configObj, err := k8sclientcmd.Load(currentConfigBytes)
+			if err != nil {
+				if len(currentConfigBytes) == 0 {
+					configObj = api.NewConfig()
+				} else {
+					return fmt.Errorf("parsing kubeconfig: %w", err)
+				}
+			}
+
+			for _, cluster := range allClusters {
+				expectedContextName := fmt.Sprintf("do-%s-%s", cluster.Region, cluster.Name)
+				if _, exists := configObj.Contexts[expectedContextName]; exists {
+					continue
+				}
+
+				client := clusterToClient[cluster.ID]
+				kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID)
+				if err != nil {
+					return fmt.Errorf("getting kubeconfig for cluster %s: %w", cluster.Name, err)
+				}
+
+				// Always merge with setCurrentContext=false
+				mergedConfigBytes, err := kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
+				if err != nil {
+					return fmt.Errorf("merging kubeconfig for cluster %s: %w", cluster.Name, err)
+				}
+				currentConfigBytes = mergedConfigBytes
+				addedContexts = append(addedContexts, expectedContextName)
+
+				// Reload config object to check for next cluster
+				configObj, err = k8sclientcmd.Load(currentConfigBytes)
+				if err != nil {
+					return fmt.Errorf("reloading kubeconfig after merge: %w", err)
+				}
+			}
+
+			if len(addedContexts) > 0 {
+				backupPath := kubeConfigPath + ".kubectl-doks.bak"
+				if verbose {
+					fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
+				}
+				if _, err := os.Stat(kubeConfigPath); err == nil {
+					if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
+						return fmt.Errorf("backing up kubeconfig: %w", err)
+					}
+				}
+
+				if verbose {
+					fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
+				}
+
+				if err := os.WriteFile(kubeConfigPath, currentConfigBytes, 0600); err != nil {
+					return fmt.Errorf("writing updated kubeconfig: %w", err)
+				}
+				if verbose {
+					fmt.Printf("Notice: Successfully saved %d new cluster(s) to your kubeconfig file.\n", len(addedContexts))
+				}
+			} else {
+				if verbose {
+					fmt.Println("Notice: Kubeconfig is already up to date.")
+				}
 			}
 		}
-
-		client := clusterToClient[selectedCluster.ID]
-		kubeConfigBytes, err := client.GetKubeConfig(ctx, selectedCluster.ID)
-		if err != nil {
-			return fmt.Errorf("getting kubeconfig for cluster %s: %w", selectedCluster.Name, err)
-		}
-
-		backupPath := kubeConfigPath + ".kubectl-doks.bak"
-		if verbose {
-			fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
-		}
-		if _, err := os.Stat(kubeConfigPath); err == nil {
-			if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
-				return fmt.Errorf("backing up kubeconfig: %w", err)
-			}
-		}
-
-		mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, setCurrentContext)
-		if err != nil {
-			return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
-		}
-
-		if err := os.WriteFile(kubeConfigPath, mergedConfigBytes, 0600); err != nil {
-			return fmt.Errorf("writing updated kubeconfig: %w", err)
-		}
-
-		if verbose {
-			fmt.Printf("Notice: Saved credentials for cluster %q to %s\n", selectedCluster.Name, kubeConfigPath)
-			if setCurrentContext {
-				contextName := fmt.Sprintf("do-%s-%s", selectedCluster.Region, selectedCluster.Name)
-				fmt.Printf("Notice: Set current-context to %q\n", contextName)
-			}
-		}
-
 		return nil
 	},
 }
 
 func init() {
 	kubeconfigCmd.AddCommand(saveCmd)
-	saveCmd.Flags().BoolVar(&setCurrentContext, "set-current-context", true, "Set current-context to the new context")
+	saveCmd.Flags().BoolVar(&setCurrentContext, "set-current-context", true, "Set current-context to the new context (only applies when saving a single cluster)")
 }
