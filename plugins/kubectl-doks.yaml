@@ -3,7 +3,7 @@ kind: Plugin
 metadata:
   name: doks
 spec:
-  version: v0.0.12
+  version: v0.0.13
   homepage: https://github.com/DO-Solutions/kubectl-doks
   shortDescription: "A kubectl plugin for interacting with DigitalOcean Kubernetes clusters."
   description: |
@@ -14,23 +14,23 @@ spec:
     - Get credentials for a DOKS cluster
   platforms:
     - selector: {matchLabels: {os: darwin, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.12/kubectl-doks-darwin-amd64.tar.gz
-      sha256: b150c7d3d81272e4446da8811bf241958421307d1f6c23d4b56d1079f344626c
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.13/kubectl-doks-darwin-amd64.tar.gz
+      sha256: 8d471d325deabdfb23fe71b81d13cdef9fc4c8d286aa4cc627d7f68792c57a5a
       files:
         - from: "*"
           to: "."
-      bin: "kubectl-doks"
+      bin: "kubectl-doks-darwin-amd64"
     - selector: {matchLabels: {os: darwin, arch: arm64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.12/kubectl-doks-darwin-arm64.tar.gz
-      sha256: 1c4ce35f1a198e05a24f1e33632a1159a9e0e7be4d47e93fdf44779f44c073fd
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.13/kubectl-doks-darwin-arm64.tar.gz
+      sha256: fc2f5c862f72e4e30d2160d824156160ff8f3b96ea61c00656c2ff7c505d7890
       files:
         - from: "*"
           to: "."
-      bin: "kubectl-doks"
+      bin: "kubectl-doks-darwin-arm64"
     - selector: {matchLabels: {os: linux, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.12/kubectl-doks-linux-amd64.tar.gz
-      sha256: 0a2096949f7363c26c69eda3e5c4fa6574b52d24f494959be0a57a966f875600
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.13/kubectl-doks-linux-amd64.tar.gz
+      sha256: 03d728ac4a7fb710e07c7cf0ffa9fd6139a48ebcefddc0d3c10d81c23b1de62f
       files:
         - from: "*"
           to: "."
-      bin: "kubectl-doks"
+      bin: "kubectl-doks-linux-amd64"
