@@ -3,7 +3,7 @@ kind: Plugin
 metadata:
   name: kubectl-doks
 spec:
-  version: v__VERSION__
+  version: v0.0.6
   homepage: https://github.com/DO-Solutions/kubectl-doks
   shortDescription: "A kubectl plugin for syncing DigitalOcean Kubernetes clusters to your local kubeconfig."
   description: |
@@ -14,28 +14,28 @@ spec:
     - Remove stale contexts from your kubeconfig
   platforms:
     - selector: {matchLabels: {os: darwin, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-darwin-amd64.tar.gz
-      sha256: __DARWIN_AMD64_SHA256__
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.6/kubectl-doks-darwin-amd64.tar.gz
+      sha256: 
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks"
     - selector: {matchLabels: {os: darwin, arch: arm64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-darwin-arm64.tar.gz
-      sha256: __DARWIN_ARM64_SHA256__
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.6/kubectl-doks-darwin-arm64.tar.gz
+      sha256: 
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks"
     - selector: {matchLabels: {os: linux, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-linux-amd64.tar.gz
-      sha256: __LINUX_AMD64_SHA256__
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.6/kubectl-doks-linux-amd64.tar.gz
+      sha256: 
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks"
     - selector: {matchLabels: {os: linux, arch: arm64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-linux-arm64.tar.gz
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.0.6/kubectl-doks-linux-arm64.tar.gz
       sha256: __LINUX_ARM64_SHA256__
       files:
         - from: "*"
