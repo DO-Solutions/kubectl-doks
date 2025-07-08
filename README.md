@@ -33,13 +33,6 @@ curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/k
 sudo install kubectl-doks-linux-amd64 /usr/local/bin/kubectl-doks
 ```
 
-#### macOS (amd64)
-
-```bash
-curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-darwin-amd64
-sudo install kubectl-doks-darwin-amd64 /usr/local/bin/kubectl-doks
-```
-
 #### macOS (arm64)
 
 ```bash
@@ -47,13 +40,20 @@ curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/k
 sudo install kubectl-doks-darwin-arm64 /usr/local/bin/kubectl-doks
 ```
 
+#### macOS (amd64)
+
+```bash
+curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-darwin-amd64
+sudo install kubectl-doks-darwin-amd64 /usr/local/bin/kubectl-doks
+```
+
 After installation, verify it's available:
 
 
-    ```bash
-    kubectl plugin list
-    # should show "doks" in the list of installed plugins
-    ```
+```bash
+kubectl plugin list
+# should show "doks" in the list of installed plugins
+```
 
 ---
 

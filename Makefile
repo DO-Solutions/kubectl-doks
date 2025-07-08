@@ -52,10 +52,10 @@ package-for-krew: build-all
 
 .PHONY: update-krew-manifest
 update-krew-manifest:
-	VERSION_NO_V=$(VERSION:v%=%)
-	LINUX_AMD64_SHA256=$$(shasum -a 256 dist/kubectl-doks-linux-amd64.tar.gz | awk '{ print $$1 }')
-	DARWIN_AMD64_SHA256=$$(shasum -a 256 dist/kubectl-doks-darwin-amd64.tar.gz | awk '{ print $$1 }')
-	DARWIN_ARM64_SHA256=$$(shasum -a 256 dist/kubectl-doks-darwin-arm64.tar.gz | awk '{ print $$1 }')
+	VERSION_NO_V=$(VERSION:v%=%); \
+	LINUX_AMD64_SHA256=$$(shasum -a 256 dist/kubectl-doks-linux-amd64.tar.gz | awk '{ print $$1 }'); \
+	DARWIN_AMD64_SHA256=$$(shasum -a 256 dist/kubectl-doks-darwin-amd64.tar.gz | awk '{ print $$1 }'); \
+	DARWIN_ARM64_SHA256=$$(shasum -a 256 dist/kubectl-doks-darwin-arm64.tar.gz | awk '{ print $$1 }'); \
 	sed -e "s|v__VERSION__|$(VERSION)|g" \
 	    -e "s|__LINUX_AMD64_SHA256__|$$LINUX_AMD64_SHA256|g" \
 	    -e "s|__DARWIN_AMD64_SHA256__|$$DARWIN_AMD64_SHA256|g" \
