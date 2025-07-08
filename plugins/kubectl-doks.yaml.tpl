@@ -19,18 +19,18 @@ spec:
       files:
         - from: "*"
           to: "."
-      bin: "kubectl-doks"
+      bin: "kubectl-doks-darwin-amd64"
     - selector: {matchLabels: {os: darwin, arch: arm64}}
       uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-darwin-arm64.tar.gz
       sha256: __DARWIN_ARM64_SHA256__
       files:
         - from: "*"
           to: "."
-      bin: "kubectl-doks"
+      bin: "kubectl-doks-darwin-arm64"
     - selector: {matchLabels: {os: linux, arch: amd64}}
       uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-linux-amd64.tar.gz
       sha256: __LINUX_AMD64_SHA256__
       files:
         - from: "*"
           to: "."
-      bin: "kubectl-doks"
+      bin: "kubectl-doks-linux-amd64"
