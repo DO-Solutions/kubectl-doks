@@ -14,6 +14,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+      # This builds the binaries for all platforms and then makes a tarball for each platform to be used with krew
       - name: Package for krew
         run: make package-for-krew
       - name: Update krew manifest
