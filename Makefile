@@ -4,8 +4,12 @@ BIN_NAME := kubectl-doks
 GO := go
 
 .PHONY: build
+# Variables
+VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+COMMIT := $(shell git rev-parse --short HEAD)
+
 build:
-	$(GO) build -o dist/$(BIN_NAME) .
+	$(GO) build -ldflags="-X 'github.com/DO-Solutions/kubectl-doks/cmd.version=$(VERSION)' -X 'github.com/DO-Solutions/kubectl-doks/cmd.commit=$(COMMIT)'" -o dist/$(BIN_NAME) .
 
 .PHONY: clean
 clean:
