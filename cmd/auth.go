@@ -104,6 +104,10 @@ func getTokensFromDoctlConfig(v *viper.Viper) ([]string, error) {
 			for name := range authContextsMap {
 				contextsToUse = append(contextsToUse, name)
 			}
+		} else if v.IsSet("access-token") {
+			// If no auth-contexts map exists, but there's a top-level token,
+			// consider 'default' as the only available context.
+			contextsToUse = append(contextsToUse, "default")
 		}
 	} else {
 		contextsToUse = authContexts
@@ -111,9 +115,18 @@ func getTokensFromDoctlConfig(v *viper.Viper) ([]string, error) {
 
 	var tokens []string
 	for _, context := range contextsToUse {
-		token := v.GetString(fmt.Sprintf("auth-contexts.%s", context))
-		if token == "true" {
-			token = v.GetString("access-token")
+		var token string
+		if context == "default" {
+			// The 'default' context can be a named context or refer to the top-level token.
+			// If 'auth-contexts.default' is 'true' or not set, use the top-level token.
+			if !v.IsSet("auth-contexts."+context) || v.GetString("auth-contexts."+context) == "true" {
+				token = v.GetString("access-token")
+			} else {
+				// It's a named context with its own token.
+				token = v.GetString("auth-contexts.default")
+			}
+		} else {
+			token = v.GetString(fmt.Sprintf("auth-contexts.%s", context))
 		}
 		if token != "" {
 			tokens = append(tokens, token)
@@ -131,11 +144,20 @@ func getCurrentDoctlContextToken(v *viper.Viper) ([]string, error) {
 		currentContext = "default"
 	}
 
-	// For most contexts, the token is the value. For 'default', the value is "true".
-	token := v.GetString(fmt.Sprintf("auth-contexts.%s", currentContext))
-	if token == "true" {
-		// A value of "true" for a context indicates to use the global access-token.
-		token = v.GetString("access-token")
+	var token string
+	// The 'default' context is special: it might not exist in 'auth-contexts'.
+	if currentContext == "default" {
+		// The 'default' context is indicated by 'auth-contexts.default: true',
+		// or by the absence of an 'auth-contexts' map.
+		if !v.IsSet("auth-contexts") || v.GetString("auth-contexts.default") == "true" {
+			token = v.GetString("access-token")
+		} else {
+			// This case handles if 'default' is a named context with its own token.
+			token = v.GetString("auth-contexts.default")
+		}
+	} else {
+		// For any other named context.
+		token = v.GetString(fmt.Sprintf("auth-contexts.%s", currentContext))
 	}
 
 	if token == "" {
