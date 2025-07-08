@@ -4,7 +4,7 @@ metadata:
   name: doks
 spec:
   version: v__VERSION__
-  homepage: https://github.com/digitalocean/kubectl-doks
+  homepage: https://github.com/DO-Solutions/kubectl-doks
   shortDescription: "A kubectl plugin for interacting with DigitalOcean Kubernetes clusters."
   description: |
     The DigitalOcean kubectl plugin allows you to interact with your DOKS clusters.

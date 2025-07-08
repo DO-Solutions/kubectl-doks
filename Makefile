@@ -2,8 +2,8 @@
 
 BIN_NAME := kubectl-doks
 GO := go
-KREW_MANIFEST_TEMPLATE := krew-index/plugins/kubectl-doks.yaml.tpl
-KREW_TEMPLATE := krew-index/plugins/kubectl-doks.yaml
+KREW_MANIFEST_TEMPLATE := plugins/kubectl-doks.yaml.tpl
+KREW_TEMPLATE := plugins/kubectl-doks.yaml
 
 .PHONY: build
 # Variables
