@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/viper"
 )
@@ -144,7 +145,7 @@ func getCurrentDoctlContextToken(v *viper.Viper) ([]string, error) {
 	return []string{token}, nil
 }
 
-// getDoctlConfigPath determines the path to the doctl config file.
+// getDoctlConfigPath determines the path to the doctl config file based on the OS.
 func getDoctlConfigPath() string {
 	if configFile != "" {
 		return configFile
@@ -154,7 +155,13 @@ func getDoctlConfigPath() string {
 		// Unable to get home directory, return empty string and let viper handle it.
 		return ""
 	}
-	return filepath.Join(home, ".config", "doctl", "config.yaml")
+
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library", "Application Support", "doctl", "config.yaml")
+	default: // Defaults to Linux/other Unix-like systems path
+		return filepath.Join(home, ".config", "doctl", "config.yaml")
+	}
 }
 
 // unique returns a new slice with duplicate strings removed.

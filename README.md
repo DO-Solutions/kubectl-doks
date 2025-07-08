@@ -158,3 +158,18 @@ kubectl doks kubeconfig save my-cluster-name --set-current-context=false
 ## Contributing
 
 Contributions welcome! Please open issues and pull requests against the `main` branch.
+
+---
+
+## Release Process
+
+This project uses GitHub Actions to automate the release process. A new release is created whenever a tag matching the pattern `v*` (e.g., `v1.0.0`) is pushed to the repository.
+
+The release workflow automatically performs the following steps:
+
+1.  **Builds Binaries**: It cross-compiles the `kubectl-doks` binary for the following platforms:
+    *   Linux (amd64)
+    *   macOS (amd64)
+    *   macOS (arm64)
+2.  **Creates GitHub Release**: It creates a new GitHub release corresponding to the pushed tag.
+3.  **Attaches Artifacts**: The compiled binaries are attached as downloadable artifacts to the GitHub release.
