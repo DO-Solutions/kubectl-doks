@@ -8,17 +8,18 @@ This plugin is ideal for environments where clusters are created and destroyed f
 
 ## Installation
 
-### Install via Custom krew Index
+### Install via krew
 
-1.  Add the custom krew index (if not already added):
+1.  Add the custom krew index from this repository:
 
     ```bash
-    kubectl krew index add do-solutions https://github.com/DO-Solutions/krew-index.git
+    kubectl krew index add kubectl-doks https://github.com/DO-Solutions/kubectl-doks.git
     ```
-2.  Install the plugin:
+
+2.  Install the `kubectl-doks` plugin:
 
     ```bash
-    kubectl krew install do-solutions/doks
+    kubectl krew install kubectl-doks/kubectl-doks 
     ```
 
 ### Prebuilt Binary
@@ -167,9 +168,8 @@ This project uses GitHub Actions to automate the release process. A new release 
 
 The release workflow automatically performs the following steps:
 
-1.  **Builds Binaries**: It cross-compiles the `kubectl-doks` binary for the following platforms:
-    *   Linux (amd64)
-    *   macOS (amd64)
-    *   macOS (arm64)
-2.  **Creates GitHub Release**: It creates a new GitHub release corresponding to the pushed tag.
-3.  **Attaches Artifacts**: The compiled binaries are attached as downloadable artifacts to the GitHub release.
+1.  **Builds and Packages Binaries**: It cross-compiles the `kubectl-doks` binary for various platforms and packages them into `.tar.gz` archives.
+2.  **Updates Krew Manifest**: It updates the `krew-index/plugins/doks.yaml` file with the new version and SHA256 checksums for the packaged binaries.
+3.  **Commits Manifest**: It commits the updated krew manifest back to the repository.
+4.  **Creates GitHub Release**: It creates a new GitHub release corresponding to the pushed tag.
+5.  **Attaches Artifacts**: The packaged `.tar.gz` archives are attached as downloadable artifacts to the GitHub release.

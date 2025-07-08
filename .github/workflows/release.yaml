@@ -14,11 +14,20 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-      - name: Build binaries
-        run: make build-all
+      - name: Package for krew
+        run: make package-for-krew
+      - name: Update krew manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          make update-krew-manifest
+          git add krew-index/plugins/kubectl-doks.yaml
+          git commit -m "Update krew manifest for ${{ github.ref_name }}"
+          git push
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/kubectl-doks-*
+          files: |
+            dist/kubectl-doks-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
