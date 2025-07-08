@@ -22,6 +22,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           make update-krew-manifest
+          git checkout main
+          git pull
           git add krew-index/plugins/kubectl-doks.yaml
           git commit -m "Update krew manifest for ${{ github.ref_name }}"
           git push
