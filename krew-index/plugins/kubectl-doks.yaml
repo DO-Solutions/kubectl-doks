@@ -34,10 +34,3 @@ spec:
         - from: "*"
           to: "."
       bin: "kubectl-doks"
-    - selector: {matchLabels: {os: linux, arch: arm64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-linux-arm64.tar.gz
-      sha256: __LINUX_ARM64_SHA256__
-      files:
-        - from: "*"
-          to: "."
-      bin: "kubectl-doks"
