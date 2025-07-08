@@ -188,9 +188,14 @@ auth-contexts:
 context: default
 `
 
+const mockConfigDefaultOnly = `
+access-token: tokenDefaultOnly
+`
+
 func TestGetAllAccessTokens(t *testing.T) {
 	mockConfigPath := createMockDoctlConfig(t, mockConfigContent)
 	mockConfigWithDefaultPath := createMockDoctlConfig(t, mockConfigWithDefaultContext)
+	mockConfigDefaultOnlyPath := createMockDoctlConfig(t, mockConfigDefaultOnly)
 
 	tests := []struct {
 		name        string
@@ -323,6 +328,14 @@ func TestGetAllAccessTokens(t *testing.T) {
 			},
 			want:        nil,
 			expectError: true,
+		},
+		{
+			name: "using current doctl context with default-only config",
+			setup: func() {
+				configFile = mockConfigDefaultOnlyPath
+			},
+			want:        []string{"tokenDefaultOnly"},
+			expectError: false,
 		},
 	}
 

@@ -131,11 +131,20 @@ func getCurrentDoctlContextToken(v *viper.Viper) ([]string, error) {
 		currentContext = "default"
 	}
 
-	// For most contexts, the token is the value. For 'default', the value is "true".
-	token := v.GetString(fmt.Sprintf("auth-contexts.%s", currentContext))
-	if token == "true" {
-		// A value of "true" for a context indicates to use the global access-token.
-		token = v.GetString("access-token")
+	var token string
+	// The 'default' context is special: it might not exist in 'auth-contexts'.
+	if currentContext == "default" {
+		// The 'default' context is indicated by 'auth-contexts.default: true',
+		// or by the absence of an 'auth-contexts' map.
+		if !v.IsSet("auth-contexts") || v.GetString("auth-contexts.default") == "true" {
+			token = v.GetString("access-token")
+		} else {
+			// This case handles if 'default' is a named context with its own token.
+			token = v.GetString("auth-contexts.default")
+		}
+	} else {
+		// For any other named context.
+		token = v.GetString(fmt.Sprintf("auth-contexts.%s", currentContext))
 	}
 
 	if token == "" {
