@@ -1,35 +1,35 @@
 apiVersion: krew.googlecontainertools.github.com/v1alpha2
 kind: Plugin
 metadata:
-  name: kubectl-doks
+  name: doks
 spec:
-  version: v__VERSION__
-  homepage: https://github.com/DO-Solutions/kubectl-doks
-  shortDescription: "A kubectl plugin for syncing DigitalOcean Kubernetes clusters to your local kubeconfig."
+  version: v0.0.10
+  homepage: https://github.com/digitalocean/kubectl-doks
+  shortDescription: "A kubectl plugin for interacting with DigitalOcean Kubernetes clusters."
   description: |
-    The DigitalOcean kubectl plugin allows you to sync your DOKS clusters to your local kubeconfig.
+    The DigitalOcean kubectl plugin allows you to interact with your DOKS clusters.
     It can be used to:
-    - Sync all DOKS clusters to your local kubeconfig
-    - Save credentials for a single named cluster or all new clusters
-    - Remove stale contexts from your kubeconfig
+    - Add a DOKS cluster to your kubeconfig
+    - Get the kubeconfig for a DOKS cluster
+    - Get credentials for a DOKS cluster
   platforms:
     - selector: {matchLabels: {os: darwin, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-darwin-amd64.tar.gz
-      sha256: __DARWIN_AMD64_SHA256__
+      uri: https://github.com/digitalocean/kubectl-doks/releases/download/v0.0.10/kubectl-doks-darwin-amd64.tar.gz
+      sha256: fe7dd57fe57e736d36b699bd667d87a6a6d4a595c97df4b60e4695808de8ab6c
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks"
     - selector: {matchLabels: {os: darwin, arch: arm64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-darwin-arm64.tar.gz
-      sha256: __DARWIN_ARM64_SHA256__
+      uri: https://github.com/digitalocean/kubectl-doks/releases/download/v0.0.10/kubectl-doks-darwin-arm64.tar.gz
+      sha256: 9a1a2448bbf1efd1d33971c59982548ae98dbd7b01a54f70a634c9b9a8c2920e
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks"
     - selector: {matchLabels: {os: linux, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v__VERSION__/kubectl-doks-linux-amd64.tar.gz
-      sha256: __LINUX_AMD64_SHA256__
+      uri: https://github.com/digitalocean/kubectl-doks/releases/download/v0.0.10/kubectl-doks-linux-amd64.tar.gz
+      sha256: c87b67828633c368306c4a95cc2a99d530df6240a8a4b335a13a76e590798a8d
       files:
         - from: "*"
           to: "."
