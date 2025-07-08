@@ -69,6 +69,16 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
     *   **When `<cluster-name>` is omitted**: It saves the credentials for **all** available clusters that are not already in your kubeconfig. This is useful for adding all new clusters without removing old ones.
     *   By default, it sets the `current-context` to the newly saved context, but **only when saving a single, named cluster**.
 
+#### `completion`
+
+*   **Description**: Generate shell completion scripts for kubectl-doks.
+*   **Behavior**: Generates shell completion scripts for the specified shell (bash, zsh, fish, or powershell).
+
+#### `version`
+
+*   **Description**: Print the version number of kubectl-doks.
+*   **Behavior**: Prints the version number of kubectl-doks to the console.
+
 ---
 
 ## Flags
