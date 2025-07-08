@@ -2,6 +2,7 @@
 
 BIN_NAME := kubectl-doks
 GO := go
+KREW_MANIFEST_TEMPLATE := krew-index/plugins/kubectl-doks.yaml.tpl
 KREW_TEMPLATE := krew-index/plugins/kubectl-doks.yaml
 
 .PHONY: build
@@ -59,4 +60,4 @@ update-krew-manifest:
 	    -e "s|__LINUX_AMD64_SHA256__|$$LINUX_AMD64_SHA256|g" \
 	    -e "s|__DARWIN_AMD64_SHA256__|$$DARWIN_AMD64_SHA256|g" \
 	    -e "s|__DARWIN_ARM64_SHA256__|$$DARWIN_ARM64_SHA256|g" \
-	    $(KREW_TEMPLATE) > $(KREW_TEMPLATE).tmp && mv $(KREW_TEMPLATE).tmp $(KREW_TEMPLATE)
+	    $(KREW_MANIFEST_TEMPLATE) > $(KREW_TEMPLATE)
