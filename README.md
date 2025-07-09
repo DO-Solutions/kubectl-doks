@@ -16,10 +16,10 @@ This plugin is ideal for environments where clusters are created and destroyed f
     kubectl krew index add kubectl-doks https://github.com/DO-Solutions/kubectl-doks.git
     ```
 
-2.  Install the `kubectl-doks` plugin:
+2.  Install the `doks` plugin:
 
     ```bash
-    kubectl krew install kubectl-doks/kubectl-doks 
+    kubectl krew install kubectl-doks/doks 
     ```
 
 ### Prebuilt Binary
@@ -29,21 +29,24 @@ Download the appropriate binary for your operating system and architecture from 
 #### Linux (amd64)
 
 ```bash
-curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-linux-amd64
+curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-linux-amd64.tar.gz
+tar xvf kubectl-doks-linux-amd64.tar.gz
 sudo install kubectl-doks-linux-amd64 /usr/local/bin/kubectl-doks
 ```
 
 #### macOS (arm64)
 
 ```bash
-curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-darwin-arm64
+curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-darwin-arm64.tar.gz
+tar xvf kubectl-doks-darwin-arm64.tar.gz
 sudo install kubectl-doks-darwin-arm64 /usr/local/bin/kubectl-doks
 ```
 
 #### macOS (amd64)
 
 ```bash
-curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-darwin-amd64
+curl -LO https://github.com/DO-Solutions/kubectl-doks/releases/latest/download/kubectl-doks-darwin-amd64.tar.gz
+tar xvf kubectl-doks-darwin-amd64.tar.gz
 sudo install kubectl-doks-darwin-amd64 /usr/local/bin/kubectl-doks
 ```
 
