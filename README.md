@@ -104,16 +104,15 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 | --- | --- | --- |
 | `-t`, `--access-token` | DigitalOcean API V2 token (can be specified multiple times) | global |
 | `-u`, `--api-url` | Override the default DigitalOcean API endpoint | global |
-| `-c`, `--config` | Path to `doctl` config file (default: `$HOME/.config/doctl/config.yaml`) | global |
+| `-c`, `--config` | Path to `doctl` config file | global |
 | `--auth-context` | Use this `doctl` authentication context (can be specified multiple times) | global |
 | `--all-auth-contexts` | Include all `doctl` authentication contexts | global |
-| `--expiry-seconds` | Credential TTL in seconds; auto-renewal is enabled by default | global |
 | `-v`, `--verbose` | Enable verbose output (reports added/removed contexts, teams queried, etc.) | global |
 | `--set-current-context` | *(save only)* Set `current-context` to the new context (default: `true`). **Only applies when saving a single named cluster.** | save |
 
 **Notes**:
 
-*   You must provide an authentication method via one of the following (in order of precedence): `--access-token`, `--auth-context`, `--all-auth-contexts`, or the `DIGITALOCEAN_ACCESS_TOKEN` environment variable. If none are provided, the plugin will attempt to use your default `doctl` configuration.
+*   You must provide an authentication method via one of the following (in order of precedence): `--access-token`, `--auth-context`, `--all-auth-contexts`, or the `DIGITALOCEAN_ACCESS_TOKEN` environment variable. If none are provided, the plugin will attempt to use your current `doctl` configuration.
 *   Combining `--access-token`, `--auth-context`, and `--all-auth-contexts` is not allowed; the plugin will exit with an error if more than one of these modes is used.
 
 ---
@@ -121,11 +120,11 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 ## Examples
 
 ```bash
-# Sync all clusters for the default doctl context.
+# Sync all clusters for the current doctl context.
 # This adds new clusters and removes stale ones.
 kubectl doks kubeconfig sync
 
-# Saves all clusters for the default doctl context.
+# Saves all clusters for the current doctl context.
 # This adds new clusters and but does not remove stale ones.
 kubectl doks kubeconfig save
 

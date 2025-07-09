@@ -9,13 +9,12 @@ import (
 
 var (
 	// Global flags
-	accessTokens      []string
-	authContexts      []string
-	allAuthContexts   bool
-	apiURL            string
-	configFile        string
-	expirySeconds     int
-	verbose           bool
+	accessTokens    []string
+	authContexts    []string
+	allAuthContexts bool
+	apiURL          string
+	configFile      string
+	verbose         bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -47,8 +46,6 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&allAuthContexts, "all-auth-contexts", "", false, "Include all doctl authentication contexts")
 	rootCmd.PersistentFlags().StringVarP(&apiURL, "api-url", "u", "", "Override the default DigitalOcean API endpoint")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Path to doctl config file (default: $HOME/.config/doctl/config.yaml)")
-	rootCmd.PersistentFlags().IntVarP(&expirySeconds, "expiry-seconds", "", 0,
-		"Credential TTL in seconds; auto-renewal is enabled by default")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 }
 
