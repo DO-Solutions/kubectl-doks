@@ -26,7 +26,7 @@ jobs:
           make update-krew-manifest
           git checkout main
           git pull
-          git add plugins/kubectl-doks.yaml
+          git add plugins/doks.yaml
           git commit -m "Update krew manifest for ${{ github.ref_name }}"
           git push
       - name: Upload release artifacts
