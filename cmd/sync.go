@@ -55,10 +55,6 @@ is synchronized with the clusters' credentials.`,
 			}
 		}
 
-		if len(allClusters) == 0 {
-			fmt.Println("No DOKS clusters found to sync.")
-			return nil
-		}
 
 		prunedConfigBytes, removedContexts, err := kubeconfig.PruneConfig(existingConfigBytes, allClusters)
 		if err != nil {

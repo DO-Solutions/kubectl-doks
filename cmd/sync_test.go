@@ -288,4 +288,33 @@ func TestSyncCommandContextHandling(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "", updatedKubeconfig.CurrentContext)
 	})
+
+	t.Run("remove stale contexts when no clusters are found", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v2/kubernetes/clusters" {
+				clusters := []*godo.KubernetesCluster{}
+				response := struct{ KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"` }{KubernetesClusters: clusters}
+				w.Header().Set("Content-Type", "application/json")
+				require.NoError(t, json.NewEncoder(w).Encode(response))
+			}
+		}))
+		defer server.Close()
+
+		finalKubeConfigPath, cleanup := setup(t, initialKubeconfigForSync, server)
+		defer cleanup()
+
+		setCurrentContext = true
+		err := syncCmd.RunE(syncCmd, []string{})
+		require.NoError(t, err)
+
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+
+		assert.NotContains(t, updatedKubeconfig.Contexts, "do-nyc1-old-cluster", "Old context should have been removed")
+		assert.NotContains(t, updatedKubeconfig.Clusters, "do-nyc1-old-cluster", "Old cluster should have been removed")
+		assert.NotContains(t, updatedKubeconfig.AuthInfos, "do-nyc1-old-cluster-admin", "Old user should have been removed")
+		assert.Empty(t, updatedKubeconfig.CurrentContext, "Current context should be empty")
+	})
 }
