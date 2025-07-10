@@ -14,7 +14,8 @@ var (
 	allAuthContexts bool
 	apiURL          string
 	configFile      string
-	verbose         bool
+	verbose           bool
+	setCurrentContext bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -47,6 +48,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&apiURL, "api-url", "u", "", "Override the default DigitalOcean API endpoint")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Path to doctl config file (default: $HOME/.config/doctl/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
+	rootCmd.PersistentFlags().BoolVar(&setCurrentContext, "set-current-context", true, "Set current-context after a successful save or sync")
 }
 
 // validateAuthFlags ensures that at least one authentication method is specified.

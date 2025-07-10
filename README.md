@@ -79,7 +79,7 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
     *   Creates a backup of the existing kubeconfig at `~/.kube/config.kubectl-doks.bak` before modifying it.
     *   **Adds** contexts for any new clusters found on DigitalOcean that are not in your local kubeconfig.
     *   **Removes** stale contexts (and related cluster/user entries) from your kubeconfig if the corresponding cluster no longer exists on DigitalOcean. It only removes contexts prefixed with `do-`.
-    *   Does **not** change the `current-context`.
+    *   By default, it will set the `current-context` if the current-context is not set (which could have been a stale context that was removed) and only one new context is added. This can be disabled with `--set-current-context=false`.
 
 #### `kubeconfig save [<cluster-name>]`
 
@@ -87,7 +87,10 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 *   **Behavior**:
     *   **When a `<cluster-name>` is provided**: It saves the credentials for that specific cluster. This is functionally equivalent to `doctl kubernetes cluster kubeconfig save <cluster-name>`.
     *   **When `<cluster-name>` is omitted**: It saves the credentials for **all** available clusters that are not already in your kubeconfig. This is useful for adding all new clusters without removing old ones.
-    *   By default, it sets the `current-context` to the newly saved context, but **only when saving a single, named cluster**.
+    *   By default, it sets the `current-context` in two cases:
+        *   When saving a single, named cluster.
+        *   When saving all clusters, if only one new context is added and no `current-context` is already set.
+    *   This behavior can be disabled with `--set-current-context=false`.
 
 #### `completion`
 
@@ -111,7 +114,7 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 | `--auth-context` | Use this `doctl` authentication context (can be specified multiple times) | global |
 | `--all-auth-contexts` | Include all `doctl` authentication contexts | global |
 | `-v`, `--verbose` | Enable verbose output (reports added/removed contexts, teams queried, etc.) | global |
-| `--set-current-context` | *(save only)* Set `current-context` to the new context (default: `true`). **Only applies when saving a single named cluster.** | save |
+| `--set-current-context` | Set `current-context` after a `save` or `sync` operation (default: `true`). See command descriptions for specific behavior. | global |
 
 **Notes**:
 

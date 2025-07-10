@@ -55,10 +55,6 @@ is synchronized with the clusters' credentials.`,
 			}
 		}
 
-		if len(allClusters) == 0 {
-			fmt.Println("No DOKS clusters found to sync.")
-			return nil
-		}
 
 		prunedConfigBytes, removedContexts, err := kubeconfig.PruneConfig(existingConfigBytes, allClusters)
 		if err != nil {
@@ -131,7 +127,38 @@ is synchronized with the clusters' credentials.`,
 				fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
 			}
 
-			if err := os.WriteFile(kubeConfigPath, currentConfigBytes, 0600); err != nil {
+			config, err := k8sclientcmd.Load(currentConfigBytes)
+			if err != nil {
+				return fmt.Errorf("loading final kubeconfig: %w", err)
+			}
+
+			originalConfig, _ := k8sclientcmd.Load(existingConfigBytes)
+			originalCurrentContext := ""
+			if originalConfig != nil {
+				originalCurrentContext = originalConfig.CurrentContext
+			}
+
+			contextRemoved := false
+			for _, r := range removedContexts {
+				if r == originalCurrentContext {
+					contextRemoved = true
+					break
+				}
+			}
+
+			if setCurrentContext && len(addedContexts) == 1 && (config.CurrentContext == "" || contextRemoved) {
+				config.CurrentContext = addedContexts[0]
+				if verbose {
+					fmt.Printf("Notice: Set current-context to %q\n", addedContexts[0])
+				}
+			}
+
+			finalConfigBytes, err := k8sclientcmd.Write(*config)
+			if err != nil {
+				return fmt.Errorf("serializing final kubeconfig: %w", err)
+			}
+
+			if err := os.WriteFile(kubeConfigPath, finalConfigBytes, 0600); err != nil {
 				return fmt.Errorf("writing updated kubeconfig: %w", err)
 			}
 			if verbose {

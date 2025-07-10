@@ -12,10 +12,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
-var (
-	setCurrentContext bool
-)
-
 // saveCmd represents the save command
 var saveCmd = &cobra.Command{
 	Use:   "save [<cluster-name>]",
@@ -94,9 +90,24 @@ If no cluster name is provided, it saves the credentials for all available clust
 				}
 			}
 
-			mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, setCurrentContext)
+			mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, false) // Always merge with false first
 			if err != nil {
 				return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+			}
+
+			config, err := k8sclientcmd.Load(mergedConfigBytes)
+			if err != nil {
+				return fmt.Errorf("reloading kubeconfig after merge: %w", err)
+			}
+
+			contextName := fmt.Sprintf("do-%s-%s", selectedCluster.Region, selectedCluster.Name)
+			if setCurrentContext {
+				config.CurrentContext = contextName
+			}
+
+			mergedConfigBytes, err = k8sclientcmd.Write(*config)
+			if err != nil {
+				return fmt.Errorf("serializing modified kubeconfig: %w", err)
 			}
 
 			if err := os.WriteFile(kubeConfigPath, mergedConfigBytes, 0600); err != nil {
@@ -106,7 +117,6 @@ If no cluster name is provided, it saves the credentials for all available clust
 			if verbose {
 				fmt.Printf("Notice: Saved credentials for cluster %q to %s\n", selectedCluster.Name, kubeConfigPath)
 				if setCurrentContext {
-					contextName := fmt.Sprintf("do-%s-%s", selectedCluster.Region, selectedCluster.Name)
 					fmt.Printf("Notice: Set current-context to %q\n", contextName)
 				}
 			}
@@ -166,9 +176,27 @@ If no cluster name is provided, it saves the credentials for all available clust
 					fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
 				}
 
-				if err := os.WriteFile(kubeConfigPath, currentConfigBytes, 0600); err != nil {
+				config, err := k8sclientcmd.Load(currentConfigBytes)
+				if err != nil {
+					return fmt.Errorf("loading final kubeconfig: %w", err)
+				}
+
+				if setCurrentContext && len(addedContexts) == 1 && config.CurrentContext == "" {
+					config.CurrentContext = addedContexts[0]
+					if verbose {
+						fmt.Printf("Notice: Set current-context to %q\n", addedContexts[0])
+					}
+				}
+
+				finalConfigBytes, err := k8sclientcmd.Write(*config)
+				if err != nil {
+					return fmt.Errorf("serializing final kubeconfig: %w", err)
+				}
+
+				if err := os.WriteFile(kubeConfigPath, finalConfigBytes, 0600); err != nil {
 					return fmt.Errorf("writing updated kubeconfig: %w", err)
 				}
+
 				if verbose {
 					fmt.Printf("Notice: Successfully saved %d new cluster(s) to your kubeconfig file.\n", len(addedContexts))
 				}
@@ -184,5 +212,4 @@ If no cluster name is provided, it saves the credentials for all available clust
 
 func init() {
 	kubeconfigCmd.AddCommand(saveCmd)
-	saveCmd.Flags().BoolVar(&setCurrentContext, "set-current-context", true, "Set current-context to the new context (only applies when saving a single cluster)")
 }

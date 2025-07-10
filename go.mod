@@ -3,9 +3,6 @@ module github.com/DO-Solutions/kubectl-doks
 go 1.24.2
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
-	github.com/creack/pty v1.1.17
 	github.com/digitalocean/godo v1.155.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.11.0
@@ -25,11 +22,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
