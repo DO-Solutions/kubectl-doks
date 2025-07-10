@@ -131,3 +131,178 @@ func TestSaveCommand(t *testing.T) {
 	// Verify old user still exists
 	assert.Contains(t, updatedKubeconfig.AuthInfos, "do-nyc1-old-cluster-admin", "Old user should still exist")
 }
+
+func TestSaveCommandContextHandling(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/kubernetes/clusters" {
+			clusters := []*godo.KubernetesCluster{
+				{
+					ID:         "new-cluster-id",
+					Name:       "new-cluster",
+					RegionSlug: "sfo3",
+				},
+				{
+					ID:         "another-cluster-id",
+					Name:       "another-cluster",
+					RegionSlug: "nyc1",
+				},
+			}
+			response := struct {
+				KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+			}{
+				KubernetesClusters: clusters,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		} else if r.URL.Path == "/v2/kubernetes/clusters/new-cluster-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfigForSave)
+		} else if r.URL.Path == "/v2/kubernetes/clusters/another-cluster-id/kubeconfig" {
+			const anotherKubeconfig = `
+apiVersion: v1
+clusters:
+- cluster:
+    server: https://another-cluster-server
+  name: do-nyc1-another-cluster
+contexts:
+- context:
+    cluster: do-nyc1-another-cluster
+    user: do-nyc1-another-cluster-admin
+  name: do-nyc1-another-cluster
+current-context: do-nyc1-another-cluster
+kind: Config
+users:
+- name: do-nyc1-another-cluster-admin
+  user:
+    token: another-token
+`
+			fmt.Fprint(w, anotherKubeconfig)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	setup := func(t *testing.T, initialKubeconfig string) (string, func()) {
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		require.NoError(t, os.WriteFile(finalKubeConfigPath, []byte(initialKubeconfig), 0600))
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+
+		return finalKubeConfigPath, func() {
+			t.Setenv("HOME", originalHome)
+			apiURL = originalAPIURL
+			accessTokens = originalAccessTokens
+			kubeConfigPath = originalKubeConfigPath
+		}
+	}
+
+	t.Run("save single cluster with set-current-context=true", func(t *testing.T) {
+		finalKubeConfigPath, cleanup := setup(t, initialKubeconfigForSave)
+		defer cleanup()
+
+		setCurrentContext = true
+		err := saveCmd.RunE(saveCmd, []string{"new-cluster"})
+		require.NoError(t, err)
+
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+		assert.Equal(t, "do-sfo3-new-cluster", updatedKubeconfig.CurrentContext)
+	})
+
+	t.Run("save single cluster with set-current-context=false", func(t *testing.T) {
+		finalKubeConfigPath, cleanup := setup(t, initialKubeconfigForSave)
+		defer cleanup()
+
+		setCurrentContext = false
+		err := saveCmd.RunE(saveCmd, []string{"new-cluster"})
+		require.NoError(t, err)
+
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+		assert.Equal(t, "do-nyc1-old-cluster", updatedKubeconfig.CurrentContext)
+	})
+
+	t.Run("save all with one new cluster and unset current context", func(t *testing.T) {
+		// This test needs a server that returns only one cluster to test the logic correctly.
+		singleClusterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v2/kubernetes/clusters" {
+				clusters := []*godo.KubernetesCluster{
+					{
+						ID:         "new-cluster-id",
+						Name:       "new-cluster",
+						RegionSlug: "sfo3",
+					},
+				}
+				response := struct {
+					KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+				}{
+					KubernetesClusters: clusters,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				require.NoError(t, json.NewEncoder(w).Encode(response))
+			} else if r.URL.Path == "/v2/kubernetes/clusters/new-cluster-id/kubeconfig" {
+				fmt.Fprint(w, mockKubeconfigForSave)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer singleClusterServer.Close()
+
+		const initialKubeconfigNoCurrent = `
+apiVersion: v1
+clusters: []
+contexts: []
+users: []
+`
+		finalKubeConfigPath, cleanup := setup(t, initialKubeconfigNoCurrent)
+		defer cleanup()
+
+		// Override server URL for this specific test
+		originalAPIURL := apiURL
+		apiURL = singleClusterServer.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		setCurrentContext = true
+		err := saveCmd.RunE(saveCmd, []string{})
+		require.NoError(t, err)
+
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+		assert.Equal(t, "do-sfo3-new-cluster", updatedKubeconfig.CurrentContext)
+	})
+
+	t.Run("save all with one new cluster and existing current context", func(t *testing.T) {
+		finalKubeConfigPath, cleanup := setup(t, initialKubeconfigForSave)
+		defer cleanup()
+
+		setCurrentContext = true
+		err := saveCmd.RunE(saveCmd, []string{})
+		require.NoError(t, err)
+
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+		assert.Equal(t, "do-nyc1-old-cluster", updatedKubeconfig.CurrentContext)
+	})
+}
