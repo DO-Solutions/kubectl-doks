@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	k8sclientcmd "k8s.io/client-go/tools/clientcmd"
+
+	"github.com/DO-Solutions/kubectl-doks/pkg/kubeconfig"
 )
 
 // Mock kubeconfig data
@@ -130,6 +132,13 @@ func TestSaveCommand(t *testing.T) {
 	assert.Contains(t, updatedKubeconfig.AuthInfos, "do-sfo3-new-cluster-admin", "User for new cluster should exist")
 	// Verify old user still exists
 	assert.Contains(t, updatedKubeconfig.AuthInfos, "do-nyc1-old-cluster-admin", "Old user should still exist")
+
+	// Verify cluster ID extension
+	newCluster, exists := updatedKubeconfig.Clusters["do-sfo3-new-cluster"]
+	require.True(t, exists, "New cluster config should exist")
+	id, found := kubeconfig.GetClusterID(newCluster)
+	assert.True(t, found, "Cluster ID extension should be found")
+	assert.Equal(t, "new-cluster-id", id, "Cluster ID should match")
 }
 
 func TestSaveCommandContextHandling(t *testing.T) {
@@ -289,6 +298,13 @@ users: []
 		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
 		require.NoError(t, err)
 		assert.Equal(t, "do-sfo3-new-cluster", updatedKubeconfig.CurrentContext)
+
+		// Verify cluster ID extension
+		newCluster, exists := updatedKubeconfig.Clusters["do-sfo3-new-cluster"]
+		require.True(t, exists, "New cluster config should exist")
+		id, found := kubeconfig.GetClusterID(newCluster)
+		assert.True(t, found, "Cluster ID extension should be found")
+		assert.Equal(t, "new-cluster-id", id, "Cluster ID should match")
 	})
 
 	t.Run("save all with one new cluster and existing current context", func(t *testing.T) {

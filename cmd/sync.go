@@ -75,7 +75,20 @@ is synchronized with the clusters' credentials.`,
 
 		for _, cluster := range allClusters {
 			expectedContextName := fmt.Sprintf("do-%s-%s", cluster.Region, cluster.Name)
-			if _, exists := configObj.Contexts[expectedContextName]; exists {
+
+			var needsUpdate bool
+			if existingCluster, exists := configObj.Clusters[expectedContextName]; !exists {
+				needsUpdate = true
+			} else {
+				if id, found := kubeconfig.GetClusterID(existingCluster); !found || id != cluster.ID {
+					needsUpdate = true
+					if verbose {
+						fmt.Printf("Notice: Cluster '%s' has a new ID, updating kubeconfig.\n", cluster.Name)
+					}
+				}
+			}
+
+			if !needsUpdate {
 				continue
 			}
 
@@ -105,6 +118,15 @@ is synchronized with the clusters' credentials.`,
 			configObj, err = k8sclientcmd.Load(currentConfigBytes)
 			if err != nil {
 				return fmt.Errorf("reloading kubeconfig after merge: %w", err)
+			}
+
+			if c, ok := configObj.Clusters[expectedContextName]; ok {
+				kubeconfig.SetClusterID(c, cluster.ID)
+				finalConfigBytes, err := k8sclientcmd.Write(*configObj)
+				if err != nil {
+					return fmt.Errorf("serializing intermediate kubeconfig: %w", err)
+				}
+				currentConfigBytes = finalConfigBytes
 			}
 		}
 
