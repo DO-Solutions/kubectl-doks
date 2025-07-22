@@ -101,6 +101,10 @@ If no cluster name is provided, it saves the credentials for all available clust
 			}
 
 			contextName := fmt.Sprintf("do-%s-%s", selectedCluster.Region, selectedCluster.Name)
+			if cluster, ok := config.Clusters[contextName]; ok {
+				kubeconfig.SetClusterID(cluster, selectedCluster.ID)
+			}
+
 			if setCurrentContext {
 				config.CurrentContext = contextName
 			}
@@ -146,19 +150,27 @@ If no cluster name is provided, it saves the credentials for all available clust
 					return fmt.Errorf("getting kubeconfig for cluster %s: %w", cluster.Name, err)
 				}
 
-				// Always merge with setCurrentContext=false
 				mergedConfigBytes, err := kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
 				if err != nil {
 					return fmt.Errorf("merging kubeconfig for cluster %s: %w", cluster.Name, err)
 				}
-				currentConfigBytes = mergedConfigBytes
-				addedContexts = append(addedContexts, expectedContextName)
 
-				// Reload config object to check for next cluster
-				configObj, err = k8sclientcmd.Load(currentConfigBytes)
+				// Reload config object to add extension and check for next cluster
+				configObj, err = k8sclientcmd.Load(mergedConfigBytes)
 				if err != nil {
 					return fmt.Errorf("reloading kubeconfig after merge: %w", err)
 				}
+
+				if c, ok := configObj.Clusters[expectedContextName]; ok {
+					kubeconfig.SetClusterID(c, cluster.ID)
+				}
+
+				currentConfigBytes, err = k8sclientcmd.Write(*configObj)
+				if err != nil {
+					return fmt.Errorf("serializing intermediate kubeconfig: %w", err)
+				}
+
+				addedContexts = append(addedContexts, expectedContextName)
 			}
 
 			if len(addedContexts) > 0 {
