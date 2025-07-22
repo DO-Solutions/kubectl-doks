@@ -55,7 +55,6 @@ is synchronized with the clusters' credentials.`,
 			}
 		}
 
-
 		prunedConfigBytes, removedContexts, err := kubeconfig.PruneConfig(existingConfigBytes, allClusters)
 		if err != nil {
 			return fmt.Errorf("pruning kubeconfig: %w", err)
@@ -83,7 +82,7 @@ is synchronized with the clusters' credentials.`,
 				if id, found := kubeconfig.GetClusterID(existingCluster); !found || id != cluster.ID {
 					needsUpdate = true
 					if verbose {
-						fmt.Printf("Notice: Cluster '%s' has a new ID, updating kubeconfig.\n", cluster.Name)
+						fmt.Printf("Notice: Cluster '%s' has a new ID, will resync config.\n", cluster.Name)
 					}
 				}
 			}
@@ -184,7 +183,7 @@ is synchronized with the clusters' credentials.`,
 				return fmt.Errorf("writing updated kubeconfig: %w", err)
 			}
 			if verbose {
-				fmt.Printf("Notice: Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(allClusters))
+				fmt.Printf("Notice: Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(addedContexts)+len(removedContexts))
 			}
 		} else {
 			if verbose {
