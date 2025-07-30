@@ -1,6 +1,6 @@
 # kubectl-doks
 
-A Kubernetes CLI plugin to manage DigitalOcean Kubernetes (DOKS) kubeconfig entries. Easily synchronize all active DOKS clusters to your local `~/.kube/config` and remove stale contexts, or save a single cluster’s credentials by name.
+A Kubernetes CLI plugin to manage DigitalOcean Kubernetes (DOKS) kubeconfig entries. Easily synchronize all active DOKS clusters to your local `~/.kube/config` and remove stale contexts, or save cluster credentials without removing any contexts.
 
 This plugin is ideal for environments where clusters are created and destroyed frequently: it keeps your local kubeconfig in sync by removing credentials for deleted clusters and adding new ones in a single command. You can stay in the familiar `kubectl` context without switching back to `doctl`.
 
@@ -92,11 +92,6 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
         *   When saving all clusters, if only one new context is added and no `current-context` is already set.
     *   This behavior can be disabled with `--set-current-context=false`.
 
-#### `completion`
-
-*   **Description**: Generate shell completion scripts for kubectl-doks.
-*   **Behavior**: Generates shell completion scripts for the specified shell (bash, zsh, fish, or powershell).
-
 #### `version`
 
 *   **Description**: Print the version number of kubectl-doks.
@@ -120,6 +115,16 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 
 *   You must provide an authentication method via one of the following (in order of precedence): `--access-token`, `--auth-context`, `--all-auth-contexts`, or the `DIGITALOCEAN_ACCESS_TOKEN` environment variable. If none are provided, the plugin will attempt to use your current `doctl` configuration.
 *   Combining `--access-token`, `--auth-context`, and `--all-auth-contexts` is not allowed; the plugin will exit with an error if more than one of these modes is used.
+
+---
+
+## Kubeconfig Modification Details
+
+When you use the `kubeconfig sync` or `kubeconfig save` commands the plugin modifies your kubeconfig file to include a DigitalOcean-specific extension. This helps the tool track clusters more accurately, especially when a cluster is deleted and recreated with the same name.
+
+Specifically, it adds an extension named `digitalocean.com/cluster-id` to each cluster entry in your kubeconfig. This extension stores the unique ID of the DOKS cluster.
+
+When `kubeconfig sync` is run, it compares the cluster ID from the DigitalOcean API with the one stored in the kubeconfig extension. If the IDs do not match, `kubectl-doks` recognizes that the cluster has been recreated. It then updates the kubeconfig with the new cluster's credentials, ensuring that you are always connecting to the correct cluster instance. This prevents issues where `kubectl` might try to connect to a stale or non-existent cluster that happened to share a name with a new one.
 
 ---
 
