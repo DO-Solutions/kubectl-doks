@@ -39,6 +39,8 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	// Global flags for authentication and configuration
 	rootCmd.PersistentFlags().StringSliceVarP(&accessTokens, "access-token", "t", nil,
 		"DigitalOcean API V2 token (can specify multiple times)")
