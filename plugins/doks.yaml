@@ -3,7 +3,7 @@ kind: Plugin
 metadata:
   name: doks
 spec:
-  version: v0.3.0
+  version: v1.0.0
   homepage: https://github.com/DO-Solutions/kubectl-doks
   shortDescription: "A kubectl plugin for interacting with DigitalOcean Kubernetes clusters."
   description: |
@@ -14,22 +14,22 @@ spec:
     - Get credentials for a DOKS cluster
   platforms:
     - selector: {matchLabels: {os: darwin, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.3.0/kubectl-doks-darwin-amd64.tar.gz
-      sha256: 0df67b5a1c2dda3664a67216879b05f1b9bf26e146629590f0955569d65d6976
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v1.0.0/kubectl-doks-darwin-amd64.tar.gz
+      sha256: 166b123fad7310b95de3316e4887c28738be122166bcb881659457381f58ff2b
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks-darwin-amd64"
     - selector: {matchLabels: {os: darwin, arch: arm64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.3.0/kubectl-doks-darwin-arm64.tar.gz
-      sha256: fb312cf0c02156032b0b5752e8b6ae54b1ae80e3d82e987b37fb87db816f6c1f
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v1.0.0/kubectl-doks-darwin-arm64.tar.gz
+      sha256: c6f0bc6b609b86d4041eefe47543525097786bbc03ba29562bc99e0ea58b4c9c
       files:
         - from: "*"
           to: "."
       bin: "kubectl-doks-darwin-arm64"
     - selector: {matchLabels: {os: linux, arch: amd64}}
-      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v0.3.0/kubectl-doks-linux-amd64.tar.gz
-      sha256: 9d110e4575b2ae7868b1c20b059553f1a8c988bec32c1ab3521fd2acde0b6d79
+      uri: https://github.com/DO-Solutions/kubectl-doks/releases/download/v1.0.0/kubectl-doks-linux-amd64.tar.gz
+      sha256: de89f71fdc14b6c6a1e743b148048fbf2252c93354233eeb1ed0a601ddf2bbf7
       files:
         - from: "*"
           to: "."
