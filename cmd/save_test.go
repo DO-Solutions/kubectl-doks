@@ -141,6 +141,76 @@ func TestSaveCommand(t *testing.T) {
 	assert.Equal(t, "new-cluster-id", id, "Cluster ID should match")
 }
 
+func TestSaveCommandWithForce(t *testing.T) {
+	// 1. Create a mock API server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/kubernetes/clusters" {
+			clusters := []*godo.KubernetesCluster{
+				{
+					ID:         "new-cluster-id",
+					Name:       "new-cluster",
+					RegionSlug: "sfo3",
+				},
+			}
+			response := struct {
+				KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+			}{
+				KubernetesClusters: clusters,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		} else if r.URL.Path == "/v2/kubernetes/clusters/new-cluster-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfigForSave)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	// 2. Set up temporary environment and flags
+	tmpDir := t.TempDir()
+
+	kubeConfigDir := filepath.Join(tmpDir, ".kube")
+	require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+	finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+
+	// Start with a kubeconfig that already contains the cluster from the mock server
+	initialBytes := []byte(initialKubeconfigForSave)
+	mergedBytes, err := kubeconfig.MergeConfig(initialBytes, []byte(mockKubeconfigForSave), false)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(finalKubeConfigPath, mergedBytes, 0600))
+
+	originalHome, err := os.UserHomeDir()
+	require.NoError(t, err)
+	t.Setenv("HOME", tmpDir)
+	defer t.Setenv("HOME", originalHome)
+
+	originalAPIURL := apiURL
+	apiURL = server.URL
+	defer func() { apiURL = originalAPIURL }()
+
+	originalAccessTokens := accessTokens
+	accessTokens = []string{"test-token"}
+	defer func() { accessTokens = originalAccessTokens }()
+
+	originalKubeConfigPath := kubeConfigPath
+	kubeConfigPath = ""
+	defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+	force = true
+	defer func() { force = false }()
+
+	// 3. Run the command
+	err = saveCmd.RunE(saveCmd, []string{})
+	require.NoError(t, err)
+
+	// 4. Verify the results
+	// Check that backup was created, which indicates the save was not skipped
+	backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+	_, err = os.Stat(backupPath)
+	assert.NoError(t, err, "Backup file should be created when --force is used")
+}
+
 func TestSaveCommandContextHandling(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/kubernetes/clusters" {

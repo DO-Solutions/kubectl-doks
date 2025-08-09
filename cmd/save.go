@@ -75,7 +75,7 @@ If no cluster name is provided, it saves the credentials for all available clust
 			}
 
 			client := clusterToClient[selectedCluster.ID]
-			kubeConfigBytes, err := client.GetKubeConfig(ctx, selectedCluster.ID)
+			kubeConfigBytes, err := client.GetKubeConfig(ctx, selectedCluster.ID, expirySeconds)
 			if err != nil {
 				return fmt.Errorf("getting kubeconfig for cluster %s: %w", selectedCluster.Name, err)
 			}
@@ -140,12 +140,12 @@ If no cluster name is provided, it saves the credentials for all available clust
 
 			for _, cluster := range allClusters {
 				expectedContextName := fmt.Sprintf("do-%s-%s", cluster.Region, cluster.Name)
-				if _, exists := configObj.Contexts[expectedContextName]; exists {
+				if _, exists := configObj.Contexts[expectedContextName]; exists && !force {
 					continue
 				}
 
 				client := clusterToClient[cluster.ID]
-				kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID)
+				kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID, expirySeconds)
 				if err != nil {
 					return fmt.Errorf("getting kubeconfig for cluster %s: %w", cluster.Name, err)
 				}
@@ -185,7 +185,11 @@ If no cluster name is provided, it saves the credentials for all available clust
 				}
 
 				if verbose {
-					fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
+					if expirySeconds == 0 {
+						fmt.Printf("Notice: Adding contexts: %v without expiration.\n", addedContexts)
+					} else {
+						fmt.Printf("Notice: Adding contexts: %v with expiration set to %d seconds.\n", addedContexts, expirySeconds)
+					}
 				}
 
 				config, err := k8sclientcmd.Load(currentConfigBytes)
@@ -210,7 +214,7 @@ If no cluster name is provided, it saves the credentials for all available clust
 				}
 
 				if verbose {
-					fmt.Printf("Notice: Successfully saved %d new cluster(s) to your kubeconfig file.\n", len(addedContexts))
+					fmt.Printf("Notice: Successfully saved %d DOKS cluster(s) to your kubeconfig file.\n", len(addedContexts))
 				}
 			} else {
 				if verbose {

@@ -101,15 +101,17 @@ kubectl doks kubeconfig save [<cluster-name>] [flags]
 
 ## Flags
 
-| Flag | Description | Applicable To |
-| --- | --- | --- |
-| `-t`, `--access-token` | DigitalOcean API V2 token (can be specified multiple times) | global |
-| `-u`, `--api-url` | Override the default DigitalOcean API endpoint | global |
-| `-c`, `--config` | Path to `doctl` config file | global |
-| `--auth-context` | Use this `doctl` authentication context (can be specified multiple times) | global |
-| `--all-auth-contexts` | Include all `doctl` authentication contexts | global |
-| `-v`, `--verbose` | Enable verbose output (reports added/removed contexts, teams queried, etc.) | global |
-| `--set-current-context` | Set `current-context` after a `save` or `sync` operation (default: `true`). See command descriptions for specific behavior. | global |
+| Flag | Description |
+| --- | --- |
+| `--access-token` `-t` | DigitalOcean API V2 token (can be specified multiple times) |
+| `--all-auth-contexts` | Include all `doctl` authentication contexts |
+| `--api-url` `-u` | Override the default DigitalOcean API endpoint |
+| `--auth-context` | Use this `doctl` authentication context (can be specified multiple times) |
+| `--config` `-c` | Path to `doctl` config file |
+| `--expiry-seconds` | The number of seconds until the kubeconfig expires. A value of `0` means the token never expire and is the default. |
+| `--force` `-f` | Force resync of kubeconfig even if it is up-to-date. |
+| `--set-current-context` | Set `current-context` after a `save` or `sync` operation (default: `true`). See command descriptions for specific behavior. |
+| `--verbose` `-v` | Enable verbose output (reports added/removed contexts, teams queried, etc.) |
 
 **Notes**:
 
@@ -155,6 +157,12 @@ kubectl doks kubeconfig save --auth-context test-team-1 --auth-context test-team
 
 # Save a single cluster but prevent changing the current context.
 kubectl doks kubeconfig save my-cluster-name --set-current-context=false
+
+# Save credentials for a single cluster with a 1-hour expiration.
+kubectl doks kubeconfig save my-cluster-name --expiry-seconds=3600
+
+# Force a sync of all clusters, even if they are already in the kubeconfig.
+kubectl doks kubeconfig sync --force
 ```
 
 ---

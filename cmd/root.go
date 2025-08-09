@@ -16,6 +16,8 @@ var (
 	configFile      string
 	verbose           bool
 	setCurrentContext bool
+	expirySeconds     int
+	force             bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -51,6 +53,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Path to doctl config file (default: $HOME/.config/doctl/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().BoolVar(&setCurrentContext, "set-current-context", true, "Set current-context after a successful save or sync")
+	rootCmd.PersistentFlags().IntVar(&expirySeconds, "expiry-seconds", 0, "The number of seconds until the kubeconfig expires. 0 means no expiration.")
+	rootCmd.PersistentFlags().BoolVarP(&force, "force", "f", false, "Force resync of kubeconfig even if it is up-to-date")
 }
 
 // validateAuthFlags ensures that at least one authentication method is specified.
