@@ -87,7 +87,7 @@ is synchronized with the clusters' credentials.`,
 				}
 			}
 
-			if !needsUpdate {
+			if !needsUpdate && !force {
 				continue
 			}
 
@@ -96,7 +96,7 @@ is synchronized with the clusters' credentials.`,
 				return fmt.Errorf("could not find a client for cluster %s", cluster.Name)
 			}
 
-			kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID)
+			kubeConfigBytes, err := client.GetKubeConfig(ctx, cluster.ID, expirySeconds)
 			if err != nil {
 				return fmt.Errorf("getting kubeconfig for cluster %s: %w", cluster.Name, err)
 			}
@@ -145,7 +145,11 @@ is synchronized with the clusters' credentials.`,
 			}
 
 			if verbose && len(addedContexts) > 0 {
-				fmt.Printf("Notice: Adding contexts: %v\n", addedContexts)
+				if expirySeconds == 0 {
+					fmt.Printf("Notice: Adding contexts: %v without expiration.\n", addedContexts)
+				} else {
+					fmt.Printf("Notice: Adding contexts: %v with expiration set to %d seconds.\n", addedContexts, expirySeconds)
+				}
 			}
 
 			config, err := k8sclientcmd.Load(currentConfigBytes)
@@ -182,8 +186,9 @@ is synchronized with the clusters' credentials.`,
 			if err := os.WriteFile(kubeConfigPath, finalConfigBytes, 0600); err != nil {
 				return fmt.Errorf("writing updated kubeconfig: %w", err)
 			}
+
 			if verbose {
-				fmt.Printf("Notice: Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(addedContexts)+len(removedContexts))
+				fmt.Printf("Notice: Successfully synced %d DOKS cluster(s) to your kubeconfig file.\n", len(addedContexts))
 			}
 		} else {
 			if verbose {

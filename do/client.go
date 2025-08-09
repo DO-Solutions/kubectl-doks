@@ -91,12 +91,12 @@ func (c *Client) ListClusters(ctx context.Context) ([]Cluster, error) {
 }
 
 // GetKubeConfig returns the kubeconfig for a specific cluster as a byte array
-func (c *Client) GetKubeConfig(ctx context.Context, clusterID string) ([]byte, error) {
+func (c *Client) GetKubeConfig(ctx context.Context, clusterID string, expirySeconds int) ([]byte, error) {
 	if strings.TrimSpace(clusterID) == "" {
 		return nil, errors.New("cluster ID cannot be empty")
 	}
 
-	kubeConfig, _, err := c.godoClient.Kubernetes.GetKubeConfig(ctx, clusterID)
+	kubeConfig, _, err := c.godoClient.Kubernetes.GetKubeConfigWithExpiry(ctx, clusterID, int64(expirySeconds))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving kubeconfig for cluster %s: %v", clusterID, err)
 	}

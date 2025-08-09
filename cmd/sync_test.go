@@ -334,6 +334,69 @@ func TestSyncCommandContextHandling(t *testing.T) {
 	})
 }
 
+func TestSyncCommandWithForce(t *testing.T) {
+	// 1. Create a mock API server that returns a single cluster
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/kubernetes/clusters" {
+			clusters := []*godo.KubernetesCluster{
+				{
+					ID:         "cluster-1-id",
+					Name:       "doks-cluster-1",
+					RegionSlug: "nyc1",
+				},
+			}
+			response := struct {
+				KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+			}{
+				KubernetesClusters: clusters,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		} else if r.URL.Path == "/v2/kubernetes/clusters/cluster-1-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfig1ForSync)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	// 2. Set up temporary environment with a kubeconfig that is already in sync
+	tmpDir := t.TempDir()
+	kubeConfigDir := filepath.Join(tmpDir, ".kube")
+	require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+	finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+	require.NoError(t, os.WriteFile(finalKubeConfigPath, []byte(mockKubeconfig1ForSync), 0600))
+
+	originalHome, err := os.UserHomeDir()
+	require.NoError(t, err)
+	t.Setenv("HOME", tmpDir)
+	defer t.Setenv("HOME", originalHome)
+
+	originalAPIURL := apiURL
+	apiURL = server.URL
+	defer func() { apiURL = originalAPIURL }()
+
+	originalAccessTokens := accessTokens
+	accessTokens = []string{"test-token"}
+	defer func() { accessTokens = originalAccessTokens }()
+
+	originalKubeConfigPath := kubeConfigPath
+	kubeConfigPath = ""
+	defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+	force = true
+	defer func() { force = false }()
+
+	// 3. Run the sync command
+	err = syncCmd.RunE(syncCmd, []string{})
+	require.NoError(t, err)
+
+	// 4. Verify that a backup was created, which indicates the sync was not skipped
+	backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+	_, err = os.Stat(backupPath)
+	assert.NoError(t, err, "Backup file should be created when --force is used for sync")
+}
+
 func TestSyncCommandWithRecreatedCluster(t *testing.T) {
 	// 1. Create a mock API server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
