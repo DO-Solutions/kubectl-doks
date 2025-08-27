@@ -81,18 +81,23 @@ If no cluster name is provided, it saves the credentials for all available clust
 			}
 
 			backupPath := kubeConfigPath + ".kubectl-doks.bak"
-			if verbose {
-				fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
-			}
 			if _, err := os.Stat(kubeConfigPath); err == nil {
+				if verbose {
+					fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
+				}
 				if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
 					return fmt.Errorf("backing up kubeconfig: %w", err)
 				}
 			}
 
-			mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, false) // Always merge with false first
-			if err != nil {
-				return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+			var mergedConfigBytes []byte
+			if len(existingConfigBytes) == 0 {
+				mergedConfigBytes = kubeConfigBytes
+			} else {
+				mergedConfigBytes, err = kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, false) // Always merge with false first
+				if err != nil {
+					return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+				}
 			}
 
 			config, err := k8sclientcmd.Load(mergedConfigBytes)
@@ -150,9 +155,14 @@ If no cluster name is provided, it saves the credentials for all available clust
 					return fmt.Errorf("getting kubeconfig for cluster %s: %w", cluster.Name, err)
 				}
 
-				mergedConfigBytes, err := kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
-				if err != nil {
-					return fmt.Errorf("merging kubeconfig for cluster %s: %w", cluster.Name, err)
+				var mergedConfigBytes []byte
+				if len(currentConfigBytes) == 0 {
+					mergedConfigBytes = kubeConfigBytes
+				} else {
+					mergedConfigBytes, err = kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
+					if err != nil {
+						return fmt.Errorf("merging kubeconfig for cluster %s: %w", cluster.Name, err)
+					}
 				}
 
 				// Reload config object to add extension and check for next cluster
@@ -175,10 +185,10 @@ If no cluster name is provided, it saves the credentials for all available clust
 
 			if len(addedContexts) > 0 {
 				backupPath := kubeConfigPath + ".kubectl-doks.bak"
-				if verbose {
-					fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
-				}
 				if _, err := os.Stat(kubeConfigPath); err == nil {
+					if verbose {
+						fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
+					}
 					if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
 						return fmt.Errorf("backing up kubeconfig: %w", err)
 					}

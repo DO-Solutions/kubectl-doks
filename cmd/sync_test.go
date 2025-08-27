@@ -397,6 +397,183 @@ func TestSyncCommandWithForce(t *testing.T) {
 	assert.NoError(t, err, "Backup file should be created when --force is used for sync")
 }
 
+func TestSyncCommandNoBackupWhenKubeconfigMissing(t *testing.T) {
+	// Create a mock API server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/kubernetes/clusters" {
+			clusters := []*godo.KubernetesCluster{
+				{
+					ID:         "cluster-1-id",
+					Name:       "doks-cluster-1",
+					RegionSlug: "nyc1",
+				},
+				{
+					ID:         "cluster-2-id",
+					Name:       "doks-cluster-2",
+					RegionSlug: "sfo3",
+				},
+			}
+			response := struct {
+				KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+			}{
+				KubernetesClusters: clusters,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		} else if r.URL.Path == "/v2/kubernetes/clusters/cluster-1-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfig1ForSync)
+		} else if r.URL.Path == "/v2/kubernetes/clusters/cluster-2-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfig2ForSync)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	t.Run("sync - no backup when kubeconfig doesn't exist", func(t *testing.T) {
+		// Set up temporary environment
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Explicitly ensure kubeconfig file doesn't exist
+		os.Remove(finalKubeConfigPath)
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// Run the sync command
+		err = syncCmd.RunE(syncCmd, []string{})
+		require.NoError(t, err)
+
+		// Verify the kubeconfig was created
+		_, err = os.Stat(finalKubeConfigPath)
+		assert.NoError(t, err, "Kubeconfig should be created")
+
+		// Verify NO backup was created
+		backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+		_, err = os.Stat(backupPath)
+		assert.True(t, os.IsNotExist(err), "Backup should NOT be created when kubeconfig doesn't exist")
+
+		// Verify the clusters were added
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+
+		assert.Contains(t, updatedKubeconfig.Contexts, "do-nyc1-doks-cluster-1", "Context for cluster 1 should exist")
+		assert.Contains(t, updatedKubeconfig.Contexts, "do-sfo3-doks-cluster-2", "Context for cluster 2 should exist")
+	})
+
+	t.Run("sync - backup IS created when kubeconfig exists", func(t *testing.T) {
+		// Set up temporary environment
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Create an existing kubeconfig
+		require.NoError(t, os.WriteFile(finalKubeConfigPath, []byte(initialKubeconfigForSync), 0600))
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// Run the sync command
+		err = syncCmd.RunE(syncCmd, []string{})
+		require.NoError(t, err)
+
+		// Verify the backup WAS created
+		backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+		_, err = os.Stat(backupPath)
+		assert.NoError(t, err, "Backup SHOULD be created when kubeconfig exists")
+
+		// Verify backup content matches original
+		backupContent, err := os.ReadFile(backupPath)
+		require.NoError(t, err)
+		assert.Equal(t, initialKubeconfigForSync, string(backupContent), "Backup should contain original content")
+	})
+
+	t.Run("sync removing contexts - no backup when kubeconfig doesn't exist", func(t *testing.T) {
+		// Create a server that returns no clusters
+		emptyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v2/kubernetes/clusters" {
+				clusters := []*godo.KubernetesCluster{}
+				response := struct {
+					KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+				}{
+					KubernetesClusters: clusters,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				require.NoError(t, json.NewEncoder(w).Encode(response))
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer emptyServer.Close()
+
+		// Set up temporary environment
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Explicitly ensure kubeconfig file doesn't exist
+		os.Remove(finalKubeConfigPath)
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = emptyServer.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// Run the sync command
+		err = syncCmd.RunE(syncCmd, []string{})
+		require.NoError(t, err)
+
+		// Verify NO backup was created (since kubeconfig didn't exist)
+		backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+		_, err = os.Stat(backupPath)
+		assert.True(t, os.IsNotExist(err), "Backup should NOT be created when kubeconfig doesn't exist, even when removing contexts")
+	})
+}
+
 func TestSyncCommandWithRecreatedCluster(t *testing.T) {
 	// 1. Create a mock API server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
