@@ -90,9 +90,14 @@ If no cluster name is provided, it saves the credentials for all available clust
 				}
 			}
 
-			mergedConfigBytes, err := kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, false) // Always merge with false first
-			if err != nil {
-				return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+			var mergedConfigBytes []byte
+			if len(existingConfigBytes) == 0 {
+				mergedConfigBytes = kubeConfigBytes
+			} else {
+				mergedConfigBytes, err = kubeconfig.MergeConfig(existingConfigBytes, kubeConfigBytes, false) // Always merge with false first
+				if err != nil {
+					return fmt.Errorf("merging kubeconfig for cluster %s: %w", selectedCluster.Name, err)
+				}
 			}
 
 			config, err := k8sclientcmd.Load(mergedConfigBytes)
@@ -150,9 +155,14 @@ If no cluster name is provided, it saves the credentials for all available clust
 					return fmt.Errorf("getting kubeconfig for cluster %s: %w", cluster.Name, err)
 				}
 
-				mergedConfigBytes, err := kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
-				if err != nil {
-					return fmt.Errorf("merging kubeconfig for cluster %s: %w", cluster.Name, err)
+				var mergedConfigBytes []byte
+				if len(currentConfigBytes) == 0 {
+					mergedConfigBytes = kubeConfigBytes
+				} else {
+					mergedConfigBytes, err = kubeconfig.MergeConfig(currentConfigBytes, kubeConfigBytes, false)
+					if err != nil {
+						return fmt.Errorf("merging kubeconfig for cluster %s: %w", cluster.Name, err)
+					}
 				}
 
 				// Reload config object to add extension and check for next cluster

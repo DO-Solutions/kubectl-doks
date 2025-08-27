@@ -211,6 +211,143 @@ func TestSaveCommandWithForce(t *testing.T) {
 	assert.NoError(t, err, "Backup file should be created when --force is used")
 }
 
+func TestSaveCommandWithMissingKubeconfig(t *testing.T) {
+	// 1. Create a mock API server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/kubernetes/clusters" {
+			clusters := []*godo.KubernetesCluster{
+				{
+					ID:         "new-cluster-id",
+					Name:       "new-cluster",
+					RegionSlug: "sfo3",
+				},
+			}
+			response := struct {
+				KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+			}{
+				KubernetesClusters: clusters,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		} else if r.URL.Path == "/v2/kubernetes/clusters/new-cluster-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfigForSave)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	t.Run("save specific cluster when kubeconfig doesn't exist", func(t *testing.T) {
+		// 2. Set up temporary environment and flags
+		tmpDir := t.TempDir()
+
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Don't create the kubeconfig file - it should not exist
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// 3. Run the command
+		err = saveCmd.RunE(saveCmd, []string{"new-cluster"})
+		require.NoError(t, err)
+
+		// 4. Verify the results
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+
+		// Verify new context
+		assert.Contains(t, updatedKubeconfig.Contexts, "do-sfo3-new-cluster", "Context for new cluster should exist")
+		// Verify new cluster
+		assert.Contains(t, updatedKubeconfig.Clusters, "do-sfo3-new-cluster", "New cluster should exist")
+		// Verify new user
+		assert.Contains(t, updatedKubeconfig.AuthInfos, "do-sfo3-new-cluster-admin", "User for new cluster should exist")
+
+		// Verify cluster ID extension
+		newCluster, exists := updatedKubeconfig.Clusters["do-sfo3-new-cluster"]
+		require.True(t, exists, "New cluster config should exist")
+		id, found := kubeconfig.GetClusterID(newCluster)
+		assert.True(t, found, "Cluster ID extension should be found")
+		assert.Equal(t, "new-cluster-id", id, "Cluster ID should match")
+
+		// Verify there's only one context (no old contexts)
+		assert.Len(t, updatedKubeconfig.Contexts, 1, "Should only have one context")
+	})
+
+	t.Run("save all clusters when kubeconfig doesn't exist", func(t *testing.T) {
+		// 2. Set up temporary environment and flags
+		tmpDir := t.TempDir()
+
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Don't create the kubeconfig file - it should not exist
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// 3. Run the command (no cluster name = save all)
+		err = saveCmd.RunE(saveCmd, []string{})
+		require.NoError(t, err)
+
+		// 4. Verify the results
+		updatedBytes, err := os.ReadFile(finalKubeConfigPath)
+		require.NoError(t, err)
+
+		updatedKubeconfig, err := k8sclientcmd.Load(updatedBytes)
+		require.NoError(t, err)
+
+		// Verify new context
+		assert.Contains(t, updatedKubeconfig.Contexts, "do-sfo3-new-cluster", "Context for new cluster should exist")
+		// Verify new cluster
+		assert.Contains(t, updatedKubeconfig.Clusters, "do-sfo3-new-cluster", "New cluster should exist")
+		// Verify new user
+		assert.Contains(t, updatedKubeconfig.AuthInfos, "do-sfo3-new-cluster-admin", "User for new cluster should exist")
+
+		// Verify cluster ID extension
+		newCluster, exists := updatedKubeconfig.Clusters["do-sfo3-new-cluster"]
+		require.True(t, exists, "New cluster config should exist")
+		id, found := kubeconfig.GetClusterID(newCluster)
+		assert.True(t, found, "Cluster ID extension should be found")
+		assert.Equal(t, "new-cluster-id", id, "Cluster ID should match")
+
+		// Verify there's only one context (no old contexts)
+		assert.Len(t, updatedKubeconfig.Contexts, 1, "Should only have one context")
+	})
+}
+
 func TestSaveCommandContextHandling(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/kubernetes/clusters" {
