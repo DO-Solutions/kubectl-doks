@@ -131,10 +131,10 @@ is synchronized with the clusters' credentials.`,
 
 		if len(removedContexts) > 0 || len(addedContexts) > 0 {
 			backupPath := kubeConfigPath + ".kubectl-doks.bak"
-			if verbose {
-				fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
-			}
 			if _, err := os.Stat(kubeConfigPath); err == nil {
+				if verbose {
+					fmt.Printf("Notice: Creating backup of kubeconfig at %s\n", backupPath)
+				}
 				if err := kubeconfig.BackupKubeconfig(kubeConfigPath, backupPath); err != nil {
 					return fmt.Errorf("backing up kubeconfig: %w", err)
 				}

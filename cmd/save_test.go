@@ -529,3 +529,151 @@ users: []
 		assert.Equal(t, "do-nyc1-old-cluster", updatedKubeconfig.CurrentContext)
 	})
 }
+
+func TestSaveCommandNoBackupWhenKubeconfigMissing(t *testing.T) {
+	// Create a mock API server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/kubernetes/clusters" {
+			clusters := []*godo.KubernetesCluster{
+				{
+					ID:         "test-cluster-id",
+					Name:       "test-cluster",
+					RegionSlug: "sfo3",
+				},
+			}
+			response := struct {
+				KubernetesClusters []*godo.KubernetesCluster `json:"kubernetes_clusters"`
+			}{
+				KubernetesClusters: clusters,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		} else if r.URL.Path == "/v2/kubernetes/clusters/test-cluster-id/kubeconfig" {
+			fmt.Fprint(w, mockKubeconfigForSave)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	t.Run("save specific cluster - no backup when kubeconfig doesn't exist", func(t *testing.T) {
+		// Set up temporary environment
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Explicitly ensure kubeconfig file doesn't exist
+		os.Remove(finalKubeConfigPath)
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// Run the command
+		err = saveCmd.RunE(saveCmd, []string{"test-cluster"})
+		require.NoError(t, err)
+
+		// Verify the kubeconfig was created
+		_, err = os.Stat(finalKubeConfigPath)
+		assert.NoError(t, err, "Kubeconfig should be created")
+
+		// Verify NO backup was created
+		backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+		_, err = os.Stat(backupPath)
+		assert.True(t, os.IsNotExist(err), "Backup should NOT be created when kubeconfig doesn't exist")
+	})
+
+	t.Run("save all clusters - no backup when kubeconfig doesn't exist", func(t *testing.T) {
+		// Set up temporary environment
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Explicitly ensure kubeconfig file doesn't exist
+		os.Remove(finalKubeConfigPath)
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// Run the command
+		err = saveCmd.RunE(saveCmd, []string{})
+		require.NoError(t, err)
+
+		// Verify the kubeconfig was created
+		_, err = os.Stat(finalKubeConfigPath)
+		assert.NoError(t, err, "Kubeconfig should be created")
+
+		// Verify NO backup was created
+		backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+		_, err = os.Stat(backupPath)
+		assert.True(t, os.IsNotExist(err), "Backup should NOT be created when kubeconfig doesn't exist")
+	})
+
+	t.Run("save - backup IS created when kubeconfig exists", func(t *testing.T) {
+		// Set up temporary environment
+		tmpDir := t.TempDir()
+		kubeConfigDir := filepath.Join(tmpDir, ".kube")
+		require.NoError(t, os.MkdirAll(kubeConfigDir, 0755))
+		finalKubeConfigPath := filepath.Join(kubeConfigDir, "config")
+		// Create an existing kubeconfig
+		require.NoError(t, os.WriteFile(finalKubeConfigPath, []byte(initialKubeconfigForSave), 0600))
+
+		originalHome, err := os.UserHomeDir()
+		require.NoError(t, err)
+		t.Setenv("HOME", tmpDir)
+		defer t.Setenv("HOME", originalHome)
+
+		originalAPIURL := apiURL
+		apiURL = server.URL
+		defer func() { apiURL = originalAPIURL }()
+
+		originalAccessTokens := accessTokens
+		accessTokens = []string{"test-token"}
+		defer func() { accessTokens = originalAccessTokens }()
+
+		originalKubeConfigPath := kubeConfigPath
+		kubeConfigPath = ""
+		defer func() { kubeConfigPath = originalKubeConfigPath }()
+
+		// Run the command
+		err = saveCmd.RunE(saveCmd, []string{})
+		require.NoError(t, err)
+
+		// Verify the backup WAS created
+		backupPath := finalKubeConfigPath + ".kubectl-doks.bak"
+		_, err = os.Stat(backupPath)
+		assert.NoError(t, err, "Backup SHOULD be created when kubeconfig exists")
+
+		// Verify backup content matches original
+		backupContent, err := os.ReadFile(backupPath)
+		require.NoError(t, err)
+		assert.Equal(t, initialKubeconfigForSave, string(backupContent), "Backup should contain original content")
+	})
+}
