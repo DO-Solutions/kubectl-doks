@@ -174,6 +174,11 @@ kubectl doks kubeconfig sync --force
 
 ---
 
+## Support
+`kubectl-doks` is offered as is without support from DigitalOcean.
+
+---
+
 ## Contributing
 
 Contributions welcome! Please open issues and pull requests against the `main` branch.
